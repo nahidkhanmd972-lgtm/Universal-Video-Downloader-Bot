@@ -1,7 +1,14 @@
 import os
 import yt_dlp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    filters,
+    ContextTypes
+)
 
 # আপনার আসল টেলিগ্রাম ইউজার আইডি
 ADMIN_ID = 8815124111
@@ -12,7 +19,7 @@ ADMIN_USERNAME = "NahidDevOfficial"
 # yt-dlp অপশনস - র‍্যাম ও সার্ভার সুরক্ষিত রাখতে হালকা রেজোলিউশন
 def get_ydl_opts(output_path):
     return {
-        'format': 'best[height<=360]', # সর্বোচ্চ 360p, যাতে সার্ভার ক্র্যাশ না করে
+        'format': 'best[height<=360]', # সর্বোচ্চ 360p, যাতে সার্ভার ওভারলোড বা ক্র্যাশ না করে
         'outtmpl': output_path,
         'noplaylist': True,
         'socket_timeout': 30,
@@ -29,16 +36,22 @@ async def download_video(url: str, output_path: str):
         return False
 
 # /start কমান্ড হ্যান্ডলার
-async def start_command(update: Update, context):
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_name = user.first_name
     
-    # আকর্ষণীয় ও প্রফেশনাল ইনলাইন বাটনসমূহ
+    # প্রফেশনাল ইনলাইন বাটনসমূহ
     keyboard = [
-        [InlineKeyboardButton("👤 আমার প্রোফাইল", callback_data="my_profile"),
-         InlineKeyboardButton("📌 ডাউনলোড গাইড", callback_data="help_guide")],
-        [InlineKeyboardButton("💬 কন্টাক্ট অ্যাডমিন", url=f"https://t.me/{ADMIN_USERNAME}")],
-        [InlineKeyboardButton("🟢 বটের লাইভ স্ট্যাটাস", callback_data="bot_status")]
+        [
+            InlineKeyboardButton("👤 আমার প্রোফাইল", callback_data="my_profile"),
+            InlineKeyboardButton("📌 ডাউনলোড গাইড", callback_data="help_guide")
+        ],
+        [
+            InlineKeyboardButton("💬 কন্টাক্ট অ্যাডমিন", url=f"https://t.me/{ADMIN_USERNAME}")
+        ],
+        [
+            InlineKeyboardButton("🟢 বটের লাইভ স্ট্যাটাস", callback_data="bot_status")
+        ]
     ]
     
     # যদি ইউজার নিজেই অ্যাডমিন (আপনি) হন, তবে এক্সট্রা অ্যাডমিন প্যানেল বাটন যোগ হবে
@@ -63,7 +76,7 @@ async def start_command(update: Update, context):
     await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
 
 # ইনলাইন বাটন ক্লিক হ্যান্ডলার
-async def button_callback(update: Update, context):
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
     await query.answer()
@@ -104,7 +117,7 @@ async def button_callback(update: Update, context):
                 "🛠️ **অ্যাডমিন কন্ট্রোল প্যানেল:**\n\n"
                 "• ওনার: @NahidDevOfficial\n"
                 "• স্ট্যাটাস: ফুল কন্ট্রোল (Verified Admin)\n"
-                "• সিস্টেম: রেন্ডার ক্লাউড অপ্টিমাইজড", 
+                "• সিস্টেম: ক্লাউড অপ্টিমাইজড", 
                 parse_mode="Markdown", 
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 ফিরে যান", callback_data="back_home")]]))
         else:
@@ -112,10 +125,16 @@ async def button_callback(update: Update, context):
 
     elif query.data == "back_home":
         keyboard = [
-            [InlineKeyboardButton("👤 আমার প্রোফাইল", callback_data="my_profile"),
-             InlineKeyboardButton("📌 ডাউনলোড গাইড", callback_data="help_guide")],
-            [InlineKeyboardButton("💬 কন্টাক্ট অ্যাডমিন", url=f"https://t.me/{ADMIN_USERNAME}")],
-            [InlineKeyboardButton("🟢 বটের লাইভ স্ট্যাটাস", callback_data="bot_status")]
+            [
+                InlineKeyboardButton("👤 আমার প্রোফাইল", callback_data="my_profile"),
+                InlineKeyboardButton("📌 ডাউনলোড গাইড", callback_data="help_guide")
+            ],
+            [
+                InlineKeyboardButton("💬 কন্টাক্ট অ্যাডমিন", url=f"https://t.me/{ADMIN_USERNAME}")
+            ],
+            [
+                InlineKeyboardButton("🟢 বটের লাইভ স্ট্যাটাস", callback_data="bot_status")
+            ]
         ]
         if user.id == ADMIN_ID:
             keyboard.append([InlineKeyboardButton("🛠️ অ্যাডমিন কন্ট্রোল প্যানেল", callback_data="admin_panel")])
@@ -127,7 +146,10 @@ async def button_callback(update: Update, context):
         )
 
 # লিংক ও মেসেজ হ্যান্ডলার (ভিডিও ডাউনলোড ও অটো-ডিলিট সিস্টেম)
-async def handle_message(update: Update, context):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+
     url = update.message.text
     chat_id = update.effective_chat.id
     user_msg_id = update.message.message_id
@@ -157,7 +179,8 @@ async def handle_message(update: Update, context):
         
         if success and os.path.exists(file_name):
             # ভিডিও পাঠানো
-            await context.bot.send_video(chat_id=chat_id, video=open(file_name, 'rb'))
+            with open(file_name, 'rb') as video_file:
+                await context.bot.send_video(chat_id=chat_id, video=video_file)
             # প্রসেসিং মেসেজটি ডিলিট করে দেওয়া
             await msg.delete()
         else:
@@ -177,20 +200,17 @@ async def handle_message(update: Update, context):
 
 # মেইন ফাংশন
 def main():
-    TOKEN = "YOUR_TELEGRAM_BOT_TOKEN" # আপনার টেলিগ্রাম বট টোকেন এখানে বসাবেন
+    # আপনার টেলিগ্রাম বট টোকেন এখানে বসাবেন অথবা এনভায়রনমেন্ট ভেরিয়েবল থেকে রিড করবে
+    TOKEN = os.environ.get("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
     
     application = ApplicationBuilder().token(TOKEN).build()
     
-    # কমান্ড হ্যান্ডলার
+    # হ্যান্ডলারসমূহ রেজিস্টার করা
     application.add_handler(CommandHandler("start", start_command))
-    
-    # ইনলাইন বাটন হ্যান্ডলার
     application.add_handler(CallbackQueryHandler(button_callback))
-    
-    # টেক্সট ও লিংক মেসেজ হ্যান্ডলার
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
-    print("Bot is running cleanly and successfully...")
+    print("Bot is running successfully...")
     application.run_polling()
 
 if __name__ == '__main__':
