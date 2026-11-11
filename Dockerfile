@@ -1,19 +1,14 @@
+# পাইথনের অফিশিয়াল লাইটওয়েট ইমেজ ব্যবহার করা
 FROM python:3.10-slim
 
-# সিস্টেমে যেন অতিরিক্ত মেমোরি খরচ না হয় এবং খুব দ্রুত ইনস্টল হয়
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
-
+# ওয়ার্কিং ডিরেক্টরি সেট করা
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# প্রজেক্টের সব ফাইল কপি করে কন্টেইনারে নিয়ে যাওয়া
+COPY . /app
 
-COPY . .
+# প্রয়োজনীয় পাইথন লাইব্রেরি ইনস্টল করা
+RUN pip install --no-cache-dir -r requirements.txt
 
+# বট স্টার্ট করার কমান্ড
 CMD ["python", "bot.py"]
