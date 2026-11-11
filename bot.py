@@ -1,6 +1,6 @@
 import os
 import random
-import requests
+import yt_dlp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -11,9 +11,8 @@ from telegram.ext import (
     ContextTypes
 )
 
-# বটের টোকেন এবং আপনার RapidAPI Key
+# বটের টোকেন এনভায়রনমেন্ট থেকে রিড করা
 TOKEN = os.getenv("BOT_TOKEN")
-RAPIDAPI_KEY = "4c9f903088mshf63f5b4780b69e2p1a9597jsna0c90125621d"
 
 ADMIN_ID = 8815124111
 ADMIN_USERNAME = "NahidDevOfficial"
@@ -23,24 +22,50 @@ BOT_STATS = {
     "unique_users": set()
 }
 
-# ইউজারদের হাসানোর ও আনন্দ দেওয়ার জন্য ফানি এবং জমজমাট ওয়েটিং মেসেজসমূহ
+# ইউজারদের হাসানোর জন্য পেট ফাটানো হাসির ও মজাদার ওয়েটিং মেসেজসমূহ
 FUNNY_WAITING_MESSAGES = [
-    "☕ এক কাপ চা খান, আর চিল করুন! ভিডিও রকেটের গতিতে নামছে...",
-    "🏃‍♂️ দৌড়ান! সার্ভার থেকে ভিডিও চোর পালিয়ে আসছে আপনার ফাইলের দিকে...",
-    "🧙‍♂️ জাদুকরী মন্ত্র পড়া হচ্ছে... আব্রাবি কা ডাব্রা, ভিডিও হয়ে যা উধাও!",
-    "🍔 একটা বার্গার গিলে ফেলতে যতোক্ষণ লাগে, তার আগেই ভিডিও নামছে...",
-    "🚀 ইলন মাস্কের রকেটও হার মানবে ভাই, একটু ফুরফুরে মেজাজে থাকুন...",
-    "😎 বস, আপনার লিংকের সম্মান রাখতে গিয়ে আমার সার্ভারের মাথা নষ্ট!",
-    "🐢 কচ্ছপ নয় ভাই, এবার একদম চিতাবাঘের গতিতে ভিডিও ফেচ হচ্ছে...",
-    "✨ একটু জাদুকরী হাওয়া দিচ্ছি, ভিডিও এখনই আপনার কোলে এসে পড়ল বলে!"
+    "☕ এক কাপ চা খান আর একটু হাসুন! ভিডিও নামাতে গিয়ে সার্ভারের তো প্রায় ঘাম ছুটে গেছে...",
+    "🏃‍♂️ ধরো ধরো! ভিডিও চোর লিংক নিয়ে রকেটের বেগে দৌড় দিয়েছে আপনার দিকে...",
+    "🧙‍♂️ জাদুকরী মন্ত্র পড়া চলছে: আব্রাবি-কা-ডাব্রা, ভিডিও হয়ে যা উধাও থেকে সরাসরি এখানে!",
+    "🍔 একটা আস্ত বার্গার চিবিয়ে শেষ করতে যতোক্ষণ লাগবে, তার আগেই ভিডিও হাজির হচ্ছে...",
+    "🚀 ইলন মাস্কের রকেটও লজ্জা পাবে ভাই, একটু ফুরফুরে মেجাজে অপেক্ষা করুন...",
+    "🐒 বানর নাচ দেখতে দেখতেই ভিডিও ডাউনলোড হয়ে যাবে, একটু চিল করুন বস!",
+    "🐢 কচ্ছপ নয় ভাই, এবার একদম চিতাবাঘের গতিতে ভিডিও ফেচ করা হচ্ছে...",
+    "😎 আপনার লিংকের আকর্ষণে সার্ভারের নাকি ক্রাশ খাওয়ার অবস্থা, একটু ধৈর্য ধরুন!",
+    "🔮 জাদুর হাড়ি থেকে ভিডিও বের করা হচ্ছে, একটু বাতাস লাগুক ফাইলটায়...",
+    "💡 হুট করে কারেন্ট চলে যাওয়ার আগে ভিডিও নামিয়ে ফেলছি, সাথে থাকুন!"
 ]
 
 # ==========================================
-# RapidAPI ও ইউনিভার্সাল ডাউনলোডার লজিক
+# yt-dlp ভিত্তিক শক্তিশালী ভিডিও ডাউনলোডার লজিক
 # ==========================================
 
+def fetch_video_ytdlp(url: str):
+    ydl_opts = {
+        'format': 'best',
+        'noplaylist': True,
+        'quiet': True,
+        'no_warnings': True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            # ডাইরেক্ট ভিডিও স্ট্রিম বা ডাউনলোড ইউআরএল রিটার্ন করা
+            if 'url' in info:
+                return info['url']
+            elif 'requested_formats' in info:
+                return info['requested_formats'][0]['url']
+    except Exception as e:
+        print(f"yt-dlp Error: {e}")
+    return None
+
 async def fetch_universal_video(url: str):
-    # ১. টিকটকের জন্য ডেডিকেটেড ব্যাকআপ
+    # প্রথমে ডেডিকেটেড yt-dlp প্রযুক্তি দিয়ে ট্রাই করা (Facebook, Insta, YouTube, TikTok সবকিছুর জন্য)
+    video_url = fetch_video_ytdlp(url)
+    if video_url:
+        return video_url
+
+    # যদি কোনো কারণে yt-dlp ফেইল করে, তবে টিকটকের জন্য ব্যাকআপ এপিআই
     if "tiktok.com" in url or "douyin.com" in url or "vm.tiktok.com" in url:
         try:
             res = requests.get(f"https://tikwm.com/api/?url={url}", timeout=6).json()
@@ -48,58 +73,6 @@ async def fetch_universal_video(url: str):
                 return res["data"]["play"]
         except:
             pass
-
-    # ২. আপনার সঠিক RapidAPI Host এবং Endpoint দিয়ে ফেসবুক, ইউটিউব, ইনস্টাগ্রাম ফেচ করা
-    rapid_api_url = "https://all-in-one-media-downloader-api.p.rapidapi.com/downloadMedia"
-    rapid_api_host = "all-in-one-media-downloader-api.p.rapidapi.com"
-
-    try:
-        headers = {
-            "X-RapidAPI-Key": RAPIDAPI_KEY,
-            "X-RapidAPI-Host": rapid_api_host,
-            "Content-Type": "application/json"
-        }
-        response = requests.get(rapid_api_url, headers=headers, params={"url": url}, timeout=10)
-        res_data = response.json()
-        
-        # এপিআই রেসপন্স থেকে বিভিন্ন ফরম্যাটে ভিডিও লিংক খুঁজে বের করা
-        if "data" in res_data:
-            if isinstance(res_data["data"], str) and res_data["data"].startswith("http"):
-                return res_data["data"]
-            elif isinstance(res_data["data"], dict):
-                for key in ["url", "link", "download", "play", "video"]:
-                    if key in res_data["data"]:
-                        return res_data["data"][key]
-        
-        if "url" in res_data:
-            return res_data["url"]
-        elif "link" in res_data:
-            return res_data["link"]
-        elif "medias" in res_data and len(res_data["medias"]) > 0:
-            return res_data["medias"][0]["url"]
-    except Exception as e:
-        print(f"RapidAPI Error: {e}")
-
-    # ৩. পাবলিক ব্যাকআপ এপিআই (Cobalt)
-    public_apis = [
-        "https://api.cobalt.tools/api/json",
-        "https://co.wuk.sh/api/json"
-    ]
-    for api in public_apis:
-        try:
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-            }
-            payload = {"url": url, "videoQuality": "max"}
-            res = requests.post(api, json=payload, headers=headers, timeout=8).json()
-            if "url" in res:
-                return res["url"]
-            elif "picker" in res:
-                return res["picker"][0]["url"]
-        except:
-            continue
 
     return None
 
@@ -128,8 +101,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     welcome_text = (
         f"স্বাগতম, *{user.first_name}*! 🚀\n\n"
-        "🤖 এটি আপনার একদম **উন্মুক্ত ও সুপার-ফাস্ট ইউনিভার্সাল ভিডিও ডাউনলোডার বট**!\n\n"
-        "💡 **কোনো বাটন বা ঝামেলা নেই!** সরাসরি চ্যাটে Facebook, YouTube, TikTok বা Instagram-এর যেকোনো ভিডিওর লিংক পেস্ট করে পাঠিয়ে দিন—বট ম্যাজিক দেখাবে!\n\n"
+        "🤖 এটি আপনার একদম **উন্মুক্ত ও সুপার-পাওয়ারফুল ইউনিভার্সাল ভিডিও ডাউনলোডার বট**!\n\n"
+        "💡 **কোনো বাটন বা ঝামেলা নেই!** সরাসরি চ্যাটে Facebook Reels, Instagram Reels, YouTube Shorts বা TikTok-এর যেকোনো লিংক পেস্ট করে পাঠিয়ে দিন!\n\n"
         "👇 নিচের মেনু থেকে বটের তথ্য বা সাহায্য দেখতে পারেন:"
     )
     
@@ -158,7 +131,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         guide_text = (
             "📌 *ব্যবহারবিধি:*\n\n"
             "১. কোনো কিছু সিলেক্ট করা লাগবে না! সরাসরি যেকোনো ভিডিওর লিংক চ্যাটে পেস্ট করুন।\n"
-            "২. ফেসবুক, ইউটিউব, টিকটক—সব লিংক সরাসরি কাজ করবে।\n"
+            "২. ফেসবুক, ইনস্টাগ্রাম, ইউটিউব শর্টস, টিকটক—সব লিংক সরাসরি কাজ করবে।\n"
             "৩. চ্যাট বক্স পরিষ্কার রাখতে আপনার পাঠানো লিংক সাথে সাথে ভ্যানিশ হয়ে যাবে।"
         )
         await query.edit_message_text(guide_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 মেনুতে ফিরে যান", callback_data="back_home")]]))
@@ -198,7 +171,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 # ==========================================
-# ডিরেক্ট লিংক হ্যান্ডলার ও অটো-ডিলিট সিস্টেম
+# ডিরেক্ট লিংক হ্যান্ডলার ও ফানি প্রসেসিং সিস্টেম
 # ==========================================
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -221,7 +194,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not (text.startswith("http://") or text.startswith("https://")):
         warning_msg = await context.bot.send_message(
             chat_id=chat_id, 
-            text="⚠️ ভাইরে ভাই, আবলতাবল কথা না লিখে একটা কাজের মতো ফেসবুক বা ইউটিউবের লিংক পাঠান! 😂"
+            text="⚠️ ভাইরে ভাই, আবলতাবল কথা না লিখে একটা কাজের মতো ফেসবুক, ইনস্টাগ্রাম বা ইউটিউবের লিংক পাঠান! 😂"
         )
         context.job_queue.run_once(
             lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=warning_msg.message_id), 
@@ -273,7 +246,7 @@ def main():
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
-    print("Direct Open Video Downloader Bot with Funny Messages is running...")
+    print("Advanced yt-dlp Video Downloader Bot is running...")
     application.run_polling()
 
 if __name__ == '__main__':
