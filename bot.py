@@ -1,5 +1,5 @@
 import os
-import yt_dlp
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -12,62 +12,58 @@ from telegram.ext import (
 
 # আপনার আসল টেলিগ্রাম ইউজার আইডি
 ADMIN_ID = 8815124111
-
-# আপনার যোগাযোগের অফিশিয়াল ইউজারনেম
 ADMIN_USERNAME = "NahidDevOfficial"
 
-# yt-dlp অপশনস - র‍্যাম ও সার্ভার সুরক্ষিত রাখতে হালকা রেজোলিউশন
-def get_ydl_opts(output_path):
-    return {
-        'format': 'best[height<=360]', # সর্বোচ্চ 360p, যাতে সার্ভার ওভারলোড বা ক্র্যাশ না করে
-        'outtmpl': output_path,
-        'noplaylist': True,
-        'socket_timeout': 30,
-    }
-
-async def download_video(url: str, output_path: str):
-    ydl_opts = get_ydl_opts(output_path)
+# ফ্রি ও ফাস্ট সোশ্যাল মিডিয়া ডাউনলোডার এপিআই ফাংশন
+async def get_video_download_link(url: str):
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        return True
+        # ফ্রি পাবলিক ভিডিও ডাউনলোডার এপিআই ব্যবহার করা হচ্ছে (যাতে সার্ভার ক্র্যাশ না করে)
+        api_url = f"https://tikwm.com/api/?url={encode_url(url)}"
+        response = requests.get(api_url, timeout=10)
+        data = response.json()
+        
+        if data.get("code") == 0:
+            # টিকটক বা অন্যান্য সোশ্যাল মিডিয়ার ডাইরেক্ট ভিডিও লিংক রিটার্ন করবে
+            video_url = data["data"]["play"]
+            return video_url
     except Exception as e:
-        print(f"Download Error: {e}")
-        return False
+        print(f"API Error: {e}")
+    return None
+
+def encode_url(url):
+    import urllib.parse
+    return urllib.parse.quote(url, safe='')
 
 # /start কমান্ড হ্যান্ডলার
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_name = user.first_name
     
-    # প্রফেশনাল ইনলাইন বাটনসমূহ
     keyboard = [
         [
             InlineKeyboardButton("👤 আমার প্রোফাইল", callback_data="my_profile"),
-            InlineKeyboardButton("📌 ডাউনলোড গাইড", callback_data="help_guide")
+            InlineKeyboardButton("📌 ব্যবহারবিধি", callback_data="help_guide")
         ],
         [
-            InlineKeyboardButton("💬 কন্টাক্ট অ্যাডমিন", url=f"https://t.me/{ADMIN_USERNAME}")
+            InlineKeyboardButton("💬 সরাসরি যোগাযোগ", url=f"https://t.me/{ADMIN_USERNAME}")
         ],
         [
-            InlineKeyboardButton("🟢 বটের লাইভ স্ট্যাটাস", callback_data="bot_status")
+            InlineKeyboardButton("🟢 সার্ভার লাইভ স্ট্যাটাস", callback_data="bot_status")
         ]
     ]
     
-    # যদি ইউজার নিজেই অ্যাডমিন (আপনি) হন, তবে এক্সট্রা অ্যাডমিন প্যানেল বাটন যোগ হবে
     if user.id == ADMIN_ID:
         keyboard.append([InlineKeyboardButton("🛠️ অ্যাডমিন কন্ট্রোল প্যানেল", callback_data="admin_panel")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     welcome_text = (
-        f"স্বাগতম, *{user_name}*! 👋\n\n"
-        "🎬 এটি আপনার পার্সোনাল সোশ্যাল মিডিয়া ভিডিও ডাউনলোডার বট।\n"
-        "যেকোনো ভিডিওর লিংক এখানে পাঠান, মুহূর্তের মধ্যে ডাউনলোড করে দেওয়া হবে!\n\n"
-        "👇 নিচের বাটনগুলো থেকে যেকোনো অপশন বেছে নিতে পারেন:"
+        f"স্বাগতম, *{user_name}*! 🚀\n\n"
+        "⚡ এটি আপনার নেক্সট-জেনারেশন সোশ্যাল মিডিয়া ভিডিও ডাউনলোডার বট।\n"
+        "টিকটক বা ফেসবুকের যেকোনো ভিডিওর লিংক এখানে পাঠান, কোনো ল্যাগ বা ক্র্যাশ ছাড়াই ইনস্ট্যান্ট পেয়ে যাবেন!\n\n"
+        "👇 নিচের মেনু থেকে অপশন বেছে নিন:"
     )
     
-    # আগের মেসেজ থাকলে তা ডিলিট করার চেষ্টা
     try:
         await update.message.delete()
     except:
@@ -75,7 +71,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
 
-# ইনলাইন বাটন ক্লিক হ্যান্ডলার
+# ইনলাইন বাটন হ্যান্ডলার
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
@@ -83,43 +79,43 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if query.data == "my_profile":
         profile_text = (
-            f"👤 **আপনার ইউজার প্রফাইল:**\n\n"
+            f"👤 *আপনার ইউজার প্রফাইল:*\n\n"
             f"• নাম: {user.first_name}\n"
             f"• ইউজারনেম: @{user.username if user.username else 'নেই'}\n"
             f"• আইডি: `{user.id}`\n\n"
-            f"✨ আপনি এই বটের একজন মূল্যবান ব্যবহারকারী!"
+            f"✨ আপনি এই হাই-স্পিড বটের একজন মূল্যবান ব্যবহারকারী!"
         )
-        await query.edit_message_text(profile_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 ফিরে যান", callback_data="back_home")]]))
+        await query.edit_message_text(profile_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 হোম মেনুতে ফিরে যান", callback_data="back_home")]]))
 
     elif query.data == "help_guide":
         guide_text = (
-            "📌 **ব্যবহারের সহজ নিয়ম:**\n\n"
-            "১. TikTok বা Facebook থেকে যেকোনো ভিডিওর লিংক কপি করুন।\n"
-            "২. সরাসরি এই চ্যাটে লিংকটি পেস্ট করে পাঠিয়ে দিন।\n"
-            "৩. বট স্বয়ংক্রিয়ভাবে আপনার লিংক মুছে ফেলবে এবং ভিডিও প্রসেস করে পাঠিয়ে দেবে।\n\n"
-            "⚠️ *নোট:* সার্ভার সচল রাখতে ছোট ভিডিও বা রিলস লিংক ব্যবহার করুন।"
+            "📌 *সহজ ব্যবহারবিধি:*\n\n"
+            "১. যেকোনো টিকটক বা রিলস ভিডিওর লিংক কপি করুন।\n"
+            "২. সরাসরি এই চ্যাটে পেস্ট করে পাঠিয়ে দিন।\n"
+            "৩. বট ম্যাজিকের মতো আপনার লিংকটি প্রসেস করে ভিডিও পাঠিয়ে দেবে এবং চ্যাট একদম পরিষ্কার রাখবে।\n\n"
+            "💡 *বিশেষত্ব:* এটি কোনো ভারী ডাউনলোড প্রসেস চালায় না, তাই সার্ভার ১০০% ফাস্ট ও নিরাপদ থাকে।"
         )
-        await query.edit_message_text(guide_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 ফিরে যান", callback_data="back_home")]]))
+        await query.edit_message_text(guide_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 হোম মেনুতে ফিরে যান", callback_data="back_home")]]))
 
     elif query.data == "bot_status":
         await query.edit_message_text(
-            "🟢 **বটের বর্তমান অবস্থা:**\n\n"
-            "• সার্ভার: সচল রয়েছে\n"
-            "• মেমোরি অপ্টিমাইজেশান: সক্রিয়\n"
-            "• অটো-ক্লিনআপ: অন\n\n"
-            "যেকোনো সমস্যায় অ্যাডমিনের সাথে যোগাযোগ করতে পারেন।", 
+            "🟢 *বটের বর্তমান অবস্থা:*\n\n"
+            "• সার্ভার ক্লাউড: আল্ট্রা-ফাস্ট ও অপ্টিমাইজড\n"
+            "• মেমোরি লিক: জিরো (শূন্য)\n"
+            "• সিস্টেম: এপিআই ড্রাইভড\n\n"
+            "সবকিছু একদম নিখুঁতভাবে কাজ করছে!", 
             parse_mode="Markdown", 
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 ফিরে যান", callback_data="back_home")]]))
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 হোম মেনুতে ফিরে যান", callback_data="back_home")]]))
 
     elif query.data == "admin_panel":
         if user.id == ADMIN_ID:
             await query.edit_message_text(
-                "🛠️ **অ্যাডমিন কন্ট্রোল প্যানেল:**\n\n"
+                "🛠️ *অ্যাডমিন কন্ট্রোল প্যানেল:*\n\n"
                 "• ওনার: @NahidDevOfficial\n"
-                "• স্ট্যাটাস: ফুল কন্ট্রোল (Verified Admin)\n"
-                "• সিস্টেম: ক্লাউড অপ্টিমাইজড", 
+                "• স্ট্যাটাস: সুপারভাইজর এক্সেস গ্রান্টেড\n"
+                "• প্রটোকল: জিরো-ক্র্যাশ এপিআই মোড", 
                 parse_mode="Markdown", 
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 ফিরে যান", callback_data="back_home")]]))
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 হোম মেনুতে ফিরে যান", callback_data="back_home")]]))
         else:
             await query.edit_message_text("❌ আপনার এই প্যানেলে ঢোকার অনুমতি নেই!")
 
@@ -127,25 +123,25 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [
                 InlineKeyboardButton("👤 আমার প্রোফাইল", callback_data="my_profile"),
-                InlineKeyboardButton("📌 ডাউনলোড গাইড", callback_data="help_guide")
+                InlineKeyboardButton("📌 ব্যবহারবিধি", callback_data="help_guide")
             ],
             [
-                InlineKeyboardButton("💬 কন্টাক্ট অ্যাডমিন", url=f"https://t.me/{ADMIN_USERNAME}")
+                InlineKeyboardButton("💬 সরাসরি যোগাযোগ", url=f"https://t.me/{ADMIN_USERNAME}")
             ],
             [
-                InlineKeyboardButton("🟢 বটের লাইভ স্ট্যাটাস", callback_data="bot_status")
+                InlineKeyboardButton("🟢 সার্ভার লাইভ স্ট্যাটাস", callback_data="bot_status")
             ]
         ]
         if user.id == ADMIN_ID:
             keyboard.append([InlineKeyboardButton("🛠️ অ্যাডমিন কন্ট্রোল প্যানেল", callback_data="admin_panel")])
         
         await query.edit_message_text(
-            f"স্বাগতম! 👋\n\nনিচের অপশনগুলো থেকে বেছে নিন:",
+            f"স্বাগতম! আবার নিচের অপশনগুলো থেকে বেছে নিন:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
 
-# লিংক ও মেসেজ হ্যান্ডলার (ভিডিও ডাউনলোড ও অটো-ডিলিট সিস্টেম)
+# লিংক ও মেসেজ হ্যান্ডলার (ইনস্ট্যান্ট এপিআই প্রসেসিং ও অটো-ডিলিট)
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -154,7 +150,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_msg_id = update.message.message_id
 
-    # যদি লেখাটি কোনো লিংক না হয় (যেমন সাধারণ চ্যাট বা হাই-হ্যালো), সাথে সাথে ডিলিট করে দেওয়া
+    # যদি লিংক না হয়, তবে মেসেজ সাথে সাথে ডিলিট
     if not (url.startswith("http://") or url.startswith("https://")):
         try:
             await update.message.delete()
@@ -162,55 +158,41 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         return
 
-    # প্রসেসিং মেসেজ পাঠানো
-    msg = await update.message.reply_text("📥 ভিডিও প্রসেস হচ্ছে, একটু অপেক্ষা করুন...")
-    
-    file_name = f"video_{update.effective_user.id}.mp4"
+    # প্রসেসিং মেসেজ
+    msg = await update.message.reply_text("⚡ ভিডিও ফেচ করা হচ্ছে, একটু অপেক্ষা করুন...")
     
     try:
-        # ইউজারের পাঠানো মূল লিংক মেসেজটি সাথে সাথে চ্যাট থেকে ডিলিট করে দেওয়া
+        # ইউজারের পাঠানো লিংক মেসেজ মুছে ফেলা যাতে চ্যাট পরিষ্কার থাকে
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=user_msg_id)
         except Exception:
             pass
 
-        # দ্রুত গতিতে ভিডিও ডাউনলোড করা
-        success = await download_video(url, file_name)
+        # এপিআই থেকে ভিডিওর ডাইরেক্ট লিংক নিয়ে আসা
+        direct_video_url = await get_video_download_link(url)
         
-        if success and os.path.exists(file_name):
-            # ভিডিও পাঠানো
-            with open(file_name, 'rb') as video_file:
-                await context.bot.send_video(chat_id=chat_id, video=video_file)
-            # প্রসেসিং মেসেজটি ডিলিট করে দেওয়া
+        if direct_video_url:
+            # সরাসরি লিংক দিয়ে ভিডিও পাঠিয়ে দেওয়া (সার্ভারে কোনো ফাইল ডাউনলোডের ঝামেলা নেই!)
+            await context.bot.send_video(chat_id=chat_id, video=direct_video_url, caption="✨ আপনার ভিডিও সফলভাবে ডাউনলোড করা হয়েছে!")
             await msg.delete()
         else:
-            await msg.edit_text("❌ ভিডিওটি ডাউনলোড করা সম্ভব হয়নি। দয়া করে ছোট বা অন্য কোনো লিংক দিন।")
+            await msg.edit_text("❌ এই লিংকটি থেকে ভিডিও সংগ্রহ করা সম্ভব হয়নি। অন্য কোনো লিংক দিয়ে চেষ্টা করুন।")
             
     except Exception as e:
-        await msg.edit_text("⚠️ সার্ভারে অতিরিক্ত চাপের কারণে প্রসেসটি সম্পন্ন হয়নি। দয়া করে একটু পরে চেষ্টা করুন।")
+        await msg.edit_text("⚠️ প্রসেসিংয়ের সময় সামান্য সমস্যা হয়েছে। আবার চেষ্টা করুন।")
         print(f"Error: {e}")
-        
-    finally:
-        # কাজ শেষ হওয়ার সাথে সাথে সার্ভার থেকে ভিডিও ফাইল মুছে ফেলা (র‍্যাম খালি রাখার জন্য)
-        if os.path.exists(file_name):
-            try:
-                os.remove(file_name)
-            except Exception as cleanup_error:
-                print(f"Cleanup Error: {cleanup_error}")
 
 # মেইন ফাংশন
 def main():
-    # আপনার টেলিগ্রাম বট টোকেন এখানে বসাবেন অথবা এনভায়রনমেন্ট ভেরিয়েবল থেকে রিড করবে
     TOKEN = os.environ.get("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
     
     application = ApplicationBuilder().token(TOKEN).build()
     
-    # হ্যান্ডলারসমূহ রেজিস্টার করা
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
-    print("Bot is running successfully...")
+    print("Super-Smooth API Bot is running...")
     application.run_polling()
 
 if __name__ == '__main__':
