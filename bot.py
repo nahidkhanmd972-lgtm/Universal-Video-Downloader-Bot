@@ -11,13 +11,13 @@ from telegram.ext import (
     ContextTypes
 )
 
-# বটের টোকেন এনভায়রনমেন্ট থেকে রিড করা
+# বটের টোকেন এবং RapidAPI Key এনভায়রনমেন্ট থেকে রিড করা (অথবা সরাসরি সেট করা)
 TOKEN = os.getenv("BOT_TOKEN")
+RAPIDAPI_KEY = "4c9f903088mshf63f5b4780b69e2p1a9597jsna0c90125621d"
 
 ADMIN_ID = 8815124111
 ADMIN_USERNAME = "NahidDevOfficial"
 
-# ইউজার ও ডাউনলোড ট্র্যাক করার স্ট্যাটস
 BOT_STATS = {
     "total_downloads": 0,
     "unique_users": set()
@@ -32,11 +32,29 @@ WAITING_MESSAGES = [
 ]
 
 # ==========================================
-# শক্তিশালী ইউনিভার্সাল ভিডিও ডাউনলোডার লজিক
+# RapidAPI ও মাল্টি-ব্যাকআপ ডাউনলোডার লজিক
 # ==========================================
 
 async def fetch_universal_video(url: str):
-    # ১. যদি টিকটক হয়, তবে ডেডিকেটেড এপিআই আগে ট্রাই করবে
+    # ১. প্রথমে RapidAPI ব্যবহার করে ভিডিও ফেচ করার চেষ্টা (Facebook, YouTube, Insta, TikTok সবকিছুর জন্য)
+    rapid_apis = [
+        {
+            "url": "https://all-in-one-video-downloader.p.rapidapi.com/get", # অথবা আপনার সাবস্ক্রাইব করা এপিআই এন্ডপয়েন্ট
+            "host": "all-in-one-video-downloader.p.rapidapi.com"
+        },
+        {
+            "url": "https://social-media-video-downloader.p.rapidapi.com/v1/social/autodown",
+            "host": "social-media-video-downloader.p.rapidapi.com"
+        }
+    ]
+
+    # সার্বজনীন ফ্রি ব্যাকআপ এপিআই (Cobalt & TikWM)
+    public_apis = [
+        "https://api.cobalt.tools/api/json",
+        "https://co.wuk.sh/api/json"
+    ]
+
+    # টিকটকের জন্য ডেডিকেটেড চেক
     if "tiktok.com" in url or "douyin.com" in url or "vm.tiktok.com" in url:
         try:
             res = requests.get(f"https://tikwm.com/api/?url={url}", timeout=6).json()
@@ -45,14 +63,29 @@ async def fetch_universal_video(url: str):
         except:
             pass
 
-    # ২. YouTube, Facebook, Instagram এবং অন্যান্য সব প্ল্যাটফর্মের জন্য মাল্টি-ব্যাকআপ এপিআই
-    apis = [
-        "https://api.cobalt.tools/api/json",
-        "https://co.wuk.sh/api/json",
-        "https://cobalt.api.rossix.net/api/json"
-    ]
+    # RapidAPI দিয়ে ট্রাই করা
+    for api in rapid_apis:
+        try:
+            headers = {
+                "X-RapidAPI-Key": RAPIDAPI_KEY,
+                "X-RapidAPI-Host": api["host"],
+                "Content-Type": "application/json"
+            }
+            response = requests.get(api["url"], headers=headers, params={"url": url}, timeout=8)
+            res_data = response.json()
+            
+            # বিভিন্ন এপিআই রেসপন্স স্ট্রাকচার হ্যান্ডেল করা
+            if "medias" in res_data and len(res_data["medias"]) > 0:
+                return res_data["medias"][0]["url"]
+            elif "url" in res_data:
+                return res_data["url"]
+            elif "link" in res_data:
+                return res_data["link"]
+        except:
+            continue
 
-    for api in apis:
+    # যদি RapidAPI কাজ না করে, তবে পাবলিক ব্যাকআপ এপিআই দিয়ে ট্রাই করবে
+    for api in public_apis:
         try:
             headers = {
                 "Accept": "application/json",
@@ -60,14 +93,14 @@ async def fetch_universal_video(url: str):
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
             }
             payload = {"url": url, "videoQuality": "max"}
-            res = requests.post(api, json=payload, headers=headers, timeout=9).json()
+            res = requests.post(api, json=payload, headers=headers, timeout=8).json()
             if "url" in res:
                 return res["url"]
             elif "picker" in res:
                 return res["picker"][0]["url"]
         except:
             continue
-            
+
     return None
 
 # ==========================================
@@ -98,7 +131,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     welcome_text = (
         f"স্বাগতম, *{user.first_name}*! 🚀\n\n"
-        "🤖 এটি আপনার প্রিমিয়াম ও সুপার-ফাস্ট ইউনিভার্সাল ভিডিও ডাউনলোডার বট!\n"
+        "🤖 এটি আপনার প্রিমিয়াম ও সুপার-পাওয়ারফুল ভিডিও ডাউনলোডার বট!\n"
         "YouTube, Facebook, TikTok বা Instagram—যেকোনো প্ল্যাটফর্মের ভিডিও নামাতে চাইলে নিচের বাটনটি ব্যবহার করুন।\n\n"
         "👇 অপশনটি সিলেক্ট করুন:"
     )
@@ -193,13 +226,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     BOT_STATS["unique_users"].add(user.id)
 
-    # ইউজারের পাঠানো লিংক বা টেক্সট সাথে সাথে ডিলিট করে দেওয়া (চ্যাট বক্স পরিষ্কার রাখার জন্য)
+    # ইউজারের পাঠানো লিংক সাথে সাথে ডিলিট করে দেওয়া
     try:
         await update.message.delete()
     except Exception:
         pass
 
-    # যদি ইউজার ডাউনলোডার মোডে না থেকে ফালতু লেখা পাঠায়
     if not context.user_data.get('waiting_for_link'):
         warning_msg = await context.bot.send_message(
             chat_id=chat_id, 
@@ -211,7 +243,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # যদি টেক্সটটি সঠিক লিংক না হয়
     if not (text.startswith("http://") or text.startswith("https://")):
         warning_msg = await context.bot.send_message(
             chat_id=chat_id, 
@@ -233,16 +264,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if direct_video_url:
             BOT_STATS["total_downloads"] += 1
             
-            # ডাউনলোড করা ভিডিওটি পাঠানো হবে (এটি চ্যাটে স্থায়ী থাকবে)
+            # ভিডিও পাঠানো হবে (চ্যাটে স্থায়ী থাকবে)
             await context.bot.send_video(
                 chat_id=chat_id, 
                 video=direct_video_url, 
                 caption=f"✨ সফলভাবে ভিডিও ডাউনলোড করা হয়েছে!\n📥 Powered by @{ADMIN_USERNAME}"
             )
-            # প্রসেসিং মেসেজটি ডিলিট করে দেওয়া
+            # প্রসেসিং মেসেজ ডিলিট করে দেওয়া
             await msg.delete()
         else:
-            await msg.edit_text("❌ এই লিংক থেকে ভিডিও সংগ্রহ করা সম্ভব হয়নি। ফেসবুক বা অন্য কোনো প্রাইভেট ভিডিও হলে পাবলিক লিংক দিয়ে আবার চেষ্টা করুন।")
+            await msg.edit_text("❌ এই লিংক থেকে ভিডিও সংগ্রহ করা সম্ভব হয়নি। পাবলিক ভিডিওর লিংক দিয়ে আবার চেষ্টা করুন।")
             context.job_queue.run_once(
                 lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=msg.message_id), 
                 5
@@ -267,7 +298,7 @@ def main():
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
-    print("Universal Video Downloader Bot is running...")
+    print("Universal RapidAPI Video Downloader Bot is running...")
     application.run_polling()
 
 if __name__ == '__main__':
