@@ -11,7 +11,7 @@ from telegram.ext import (
     ContextTypes
 )
 
-# এনভায়রনমেন্ট ভেরিয়েবল থেকে টোকেন ও এপিআই কি রিড করা (নিরাপদ পদ্ধতি)
+# এনভায়রনমেন্ট ভেরিয়েবল থেকে টোকেন ও এপিআই কি রিড করা
 TOKEN = os.getenv("BOT_TOKEN")
 GROK_API_KEY = os.getenv("GROK_API_KEY")
 
@@ -32,7 +32,10 @@ WAITING_MESSAGES = [
     "🔥 দ্রুত সার্ভার থেকে ভিডিও নামানো হচ্ছে, সাথে থাকুন..."
 ]
 
-# ১. মাল্টি-এপিআই ভিডিও ডাউনলোডার লজিক
+# ==========================================
+# ১. ভিডিও ডাউনলোডার লজিক
+# ==========================================
+
 async def fetch_tiktok(url: str):
     apis = [
         f"https://tikwm.com/api/?url={url}",
@@ -56,13 +59,18 @@ async def fetch_tiktok(url: str):
 async def fetch_facebook(url: str):
     apis = [
         "https://api.cobalt.tools/api/json",
-        "https://co.wuk.sh/api/json"
+        "https://co.wuk.sh/api/json",
+        "https://cobalt.api.rossix.net/api/json"
     ]
     for api in apis:
         try:
-            headers = {"Accept": "application/json", "Content-Type": "application/json"}
-            payload = {"url": url}
-            res = requests.post(api, json=payload, headers=headers, timeout=7).json()
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            }
+            payload = {"url": url, "videoQuality": "max"}
+            res = requests.post(api, json=payload, headers=headers, timeout=8).json()
             if "url" in res:
                 return res["url"]
             elif "picker" in res:
@@ -78,8 +86,13 @@ async def fetch_instagram(url: str):
     ]
     for api in apis:
         try:
-            headers = {"Accept": "application/json", "Content-Type": "application/json"}
-            res = requests.post(api, json={"url": url}, headers=headers, timeout=7).json()
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            }
+            payload = {"url": url}
+            res = requests.post(api, json=payload, headers=headers, timeout=8).json()
             if "url" in res:
                 return res["url"]
             elif "picker" in res:
@@ -88,7 +101,10 @@ async def fetch_instagram(url: str):
             continue
     return None
 
+# ==========================================
 # ২. Grok AI চ্যাট হ্যান্ডলার
+# ==========================================
+
 async def ask_grok_ai(user_text: str, user_name: str):
     if not GROK_API_KEY:
         return f"আরে {user_name}! আমি আপনার নিজস্ব ভিডিও ডাউনলোডার বট।"
@@ -119,16 +135,19 @@ async def ask_grok_ai(user_text: str, user_name: str):
     }
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response = requests.post(url, json=payload, headers=headers, timeout=12)
         res_data = response.json()
         if "choices" in res_data:
             return res_data["choices"][0]["message"]["content"]
     except Exception as e:
-        print(f"API Error: {e}")
+        print(f"Grok API Error: {e}")
     
-    return f"হা হা, {user_name}! আপনার কথা শুনে দারুণ লাগলো। বলুন কীভাবে সাহায্য করতে পারি?"
+    return f"হা হা, {user_name}! আপনার কথা দারুণ লেগেছে। বলুন কীভাবে সাহায্য করতে পারি?"
 
+# ==========================================
 # ৩. টেলিগ্রাম ইন্টারফেস ও মেনু
+# ==========================================
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     BOT_STATS["unique_users"].add(user.id)
@@ -209,7 +228,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📌 *ব্যবহারবিধি:*\n\n"
             "১. ভিডিও নামাতে চাইলে মেনু থেকে প্ল্যাটফর্ম সিলেক্ট করে লিংক পাঠান।\n"
             "২. বটের সাথে আড্ডা দিতে চাইলে যেকোনো সাধারণ মেসেজ পাঠান—আমি আপনার সাথে চ্যাট করব!\n"
-            "৩. সার্ভার হালকা রাখতে ইউজারের পাঠানো লিংক স্বয়ংক্রিয়ভাবে মুছে ফেলা হয়।"
+            "৩. সার্ভার ও চ্যাট বক্স পরিষ্কার রাখতে ইউজারের পাঠানো টেক্সট ও এআই উত্তর স্বয়ংক্রিয়ভাবে মুছে ফেলা হয়।"
         )
         await query.edit_message_text(guide_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 মেনুতে ফিরে যান", callback_data="back_home")]]))
 
@@ -257,7 +276,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-# ৪. মেসেজ হ্যান্ডলার
+# ==========================================
+# ৪. অটো-ডিলিট মেসেজ ও লিংক হ্যান্ডলার
+# ==========================================
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -269,43 +291,50 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     BOT_STATS["unique_users"].add(user.id)
 
+    # ইউজার মেসেজটি সাথে সাথে ডিলিট করে দেওয়া
+    try:
+        await update.message.delete()
+    except Exception:
+        pass
+
+    # এআই চ্যাট প্রসেসিং (যদি লিংক না হয়)
     if not (text.startswith("http://") or text.startswith("https://")):
         BOT_STATS["ai_chats"] += 1
-        typing_msg = await update.message.reply_text("🤖 ভাবছি...")
+        typing_msg = await context.bot.send_message(chat_id=chat_id, text="🤖 ভাবছি...")
         
         ai_reply = await ask_grok_ai(text, user.first_name)
         
+        # এআই উত্তর আপডেট করা
         await typing_msg.edit_text(ai_reply)
+        
+        # এআই-এর উত্তরটি ৬ সেকেন্ড পর স্বয়ংক্রিয়ভাবে ডিলিট হয়ে যাবে
+        context.job_queue.run_once(
+            lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=typing_msg.message_id), 
+            6
+        )
         return
 
     current_mode = context.user_data.get('download_mode')
     if not current_mode:
-        try:
-            await update.message.delete()
-        except:
-            pass
         warning_msg = await context.bot.send_message(
             chat_id=chat_id, 
-            text="⚠️ অনুগ্রহ করে প্রথমে মেনু থেকে নির্দিষ্ট প্ল্যাটফর্ম (TikTok/Facebook/Instagram) সিলেক্ট করুন, তারপর লিংক পাঠান!"
+            text="⚠️ প্রথমে মেনু থেকে প্ল্যাটফর্ম (TikTok/Facebook/Instagram) সিলেক্ট করুন!"
         )
-        context.job_queue.run_once(lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=warning_msg.message_id), 5)
+        context.job_queue.run_once(
+            lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=warning_msg.message_id), 
+            5
+        )
         return
 
     random_wait_text = random.choice(WAITING_MESSAGES)
-    msg = await update.message.reply_text(random_wait_text)
+    msg = await context.bot.send_message(chat_id=chat_id, text=random_wait_text)
     
     try:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=user_msg_id)
-        except Exception:
-            pass
-
         direct_video_url = None
         platform_name = ""
 
         if current_mode == 'tiktok':
-            direct_data = await fetch_tiktok(text)
-            direct_video_url = direct_data
+            direct_video_url = await fetch_tiktok(text)
             platform_name = "🎵 TikTok"
         elif current_mode == 'facebook':
             direct_video_url = await fetch_facebook(text)
@@ -319,17 +348,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if direct_video_url:
             BOT_STATS["total_downloads"] += 1
             
+            # ভিডিও পাঠানো হবে (এটি চ্যাটে স্থায়ী থাকবে)
             await context.bot.send_video(
                 chat_id=chat_id, 
                 video=direct_video_url, 
                 caption=f"✨ {platform_name} ভিডিও সফলভাবে ডাউনলোড করা হয়েছে!\n📥 Powered by @{ADMIN_USERNAME}"
             )
+            # প্রসেসিং মেসেজটি ডিলিট করে দেওয়া
             await msg.delete()
         else:
             await msg.edit_text("❌ এই লিংক থেকে ভিডিও সংগ্রহ করা সম্ভব হয়নি। সঠিক লিংক দিয়ে আবার চেষ্টা করুন।")
+            context.job_queue.run_once(
+                lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=msg.message_id), 
+                5
+            )
             
     except Exception as e:
         await msg.edit_text("⚠️ প্রসেসিংয়ের সময় সামান্য সমস্যা হয়েছে। আবার চেষ্টা করুন।")
+        context.job_queue.run_once(
+            lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=msg.message_id), 
+            5
+        )
         print(f"Error: {e}")
 
 def main():
