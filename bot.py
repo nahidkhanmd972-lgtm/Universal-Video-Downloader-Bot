@@ -14,27 +14,111 @@ from telegram.ext import (
 ADMIN_ID = 8815124111
 ADMIN_USERNAME = "NahidDevOfficial"
 
-# ফ্রি ও ফাস্ট সোশ্যাল মিডিয়া ডাউনলোডার এপিআই ফাংশন
-async def get_video_download_link(url: str):
+# ==========================================
+# মাল্টি-এপিআই ফলব্যাক সিস্টেম (Multi-API System)
+# ==========================================
+
+# ১. টিকটক ডাউনলোডার (একাধিক এপিআই ব্যাকআপ সহ)
+async def fetch_tiktok(url: str):
+    apis = [
+        f"https://tikwm.com/api/?url={url}",
+        f"https://api.cobalt.tools/api/json" # ব্যাকআপ
+    ]
+    
+    # প্রথম এপিআই (TikWM) ট্রাই করা
     try:
-        # ফ্রি পাবলিক ভিডিও ডাউনলোডার এপিআই ব্যবহার করা হচ্ছে (যাতে সার্ভার ক্র্যাশ না করে)
-        api_url = f"https://tikwm.com/api/?url={encode_url(url)}"
-        response = requests.get(api_url, timeout=10)
-        data = response.json()
+        res = requests.get(apis[0], timeout=6).json()
+        if res.get("code") == 0:
+            return res["data"]["play"]
+    except:
+        pass
         
-        if data.get("code") == 0:
-            # টিকটক বা অন্যান্য সোশ্যাল মিডিয়ার ডাইরেক্ট ভিডিও লিংক রিটার্ন করবে
-            video_url = data["data"]["play"]
-            return video_url
-    except Exception as e:
-        print(f"API Error: {e}")
+    # দ্বিতীয় এপিআই (Cobalt) ট্রাই করা
+    try:
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        res = requests.post(apis[1], json={"url": url}, headers=headers, timeout=6).json()
+        if "url" in res:
+            return res["url"]
+    except:
+        pass
+        
     return None
 
-def encode_url(url):
-    import urllib.parse
-    return urllib.parse.quote(url, safe='')
+# ২. ফেসবুক ডাউনলোডার (একাধিক এপিআই ব্যাকআপ সহ - ফেসবুকের জন্য এক্সট্রা সিকিউরড)
+async def fetch_facebook(url: str):
+    # ফেসবুক এবং সোশ্যাল মিডিয়ার জন্য Cobalt এবং অন্যান্য ওপেন এপিআই
+    apis = [
+        "https://api.cobalt.tools/api/json",
+        "https://co.wuk.sh/api/json" # আরেকটি পাবলিক ইনস্ট্যান্স
+    ]
+    
+    for api in apis:
+        try:
+            headers = {"Accept": "application/json", "Content-Type": "application/json"}
+            payload = {"url": url}
+            res = requests.post(api, json=payload, headers=headers, timeout=7).json()
+            if "url" in res:
+                return res["url"]
+            elif "picker" in res_data if 'res_data' in locals() else False:
+                return res["picker"][0]["url"]
+        except:
+            continue
+            
+    return None
 
-# /start কমান্ড হ্যান্ডলার
+# ৩. ইনস্টাগ্রাম ডাউনলোডার
+async def fetch_instagram(url: str):
+    try:
+        api_endpoint = "https://api.cobalt.tools/api/json"
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        res = requests.post(api_endpoint, json={"url": url}, headers=headers, timeout=7).json()
+        
+        if "url" in res:
+            return res["url"]
+        elif "picker" in res:
+            return res["picker"][0]["url"]
+    except:
+        pass
+    return None
+
+# ৪. ইউটিউব ডাউনলোডার (শর্টস বা ভিডিও)
+async def fetch_youtube(url: str):
+    try:
+        api_endpoint = "https://api.cobalt.tools/api/json"
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        # ইউটিউবের জন্য অডিও/ভিডিও কনফিগারেশনসহ পেলোড
+        payload = {"url": url, "vQuality": "360"}
+        res = requests.post(api_endpoint, json=payload, headers=headers, timeout=8).json()
+        
+        if "url" in res:
+            return res["url"]
+    except:
+        pass
+    return None
+
+# লিংকের ধরন বুঝে সঠিক এপিআই সিলেক্ট করার মাস্টার ফাংশন
+async def get_universal_video(url: str):
+    url_lower = url.lower()
+    video_link = None
+    
+    if "tiktok.com" in url_lower or "douyin.com" in url_lower:
+        video_link = await fetch_tiktok(url)
+    elif "facebook.com" in url_lower or "fb.watch" in url_lower or "fbdl" in url_lower:
+        video_link = await fetch_facebook(url)
+    elif "instagram.com" in url_lower:
+        video_link = await fetch_instagram(url)
+    elif "youtube.com" in url_lower or "youtu.be" in url_lower:
+        video_link = await fetch_youtube(url)
+    else:
+        # যদি অন্য কোনো লিংক হয়, তবে সার্বজনীন Cobalt এপিআই দিয়ে ট্রাই করবে
+        video_link = await fetch_facebook(url)
+        
+    return video_link
+
+# ==========================================
+# টেলিগ্রাম বট ইন্টারফেস ও হ্যান্ডলারসমূহ
+# ==========================================
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_name = user.first_name
@@ -45,7 +129,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("📌 ব্যবহারবিধি", callback_data="help_guide")
         ],
         [
-            InlineKeyboardButton("💬 সরাসরি যোগাযোগ", url=f"https://t.me/{ADMIN_USERNAME}")
+            InlineKeyboardButton("💬 অ্যাডমিন যোগাযোগ", url=f"https://t.me/{ADMIN_USERNAME}")
         ],
         [
             InlineKeyboardButton("🟢 সার্ভার লাইভ স্ট্যাটাস", callback_data="bot_status")
@@ -59,8 +143,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     welcome_text = (
         f"স্বাগতম, *{user_name}*! 🚀\n\n"
-        "⚡ এটি আপনার নেক্সট-জেনারেশন সোশ্যাল মিডিয়া ভিডিও ডাউনলোডার বট।\n"
-        "টিকটক বা ফেসবুকের যেকোনো ভিডিওর লিংক এখানে পাঠান, কোনো ল্যাগ বা ক্র্যাশ ছাড়াই ইনস্ট্যান্ট পেয়ে যাবেন!\n\n"
+        "⚡ এটি আপনার মাল্টি-এপিআই পাওয়ার্ড সোশ্যাল মিডিয়া ভিডিও ডাউনলোডার বট।\n"
+        "• টিকটক, ফেসবুক, ইনস্টাগ্রাম ও ইউটিউব লিংক দিন\n"
+        "• ইনস্ট্যান্ট ভিডিও ডাউনলোডের ম্যাজিক দেখুন!\n\n"
         "👇 নিচের মেনু থেকে অপশন বেছে নিন:"
     )
     
@@ -71,7 +156,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
 
-# ইনলাইন বাটন হ্যান্ডলার
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
@@ -83,27 +167,26 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"• নাম: {user.first_name}\n"
             f"• ইউজারনেম: @{user.username if user.username else 'নেই'}\n"
             f"• আইডি: `{user.id}`\n\n"
-            f"✨ আপনি এই হাই-স্পিড বটের একজন মূল্যবান ব্যবহারকারী!"
+            f"✨ আপনি এই মাল্টি-এপিআই সিস্টেমের একজন বিশেষ ব্যবহারকারী!"
         )
         await query.edit_message_text(profile_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 হোম মেনুতে ফিরে যান", callback_data="back_home")]]))
 
     elif query.data == "help_guide":
         guide_text = (
             "📌 *সহজ ব্যবহারবিধি:*\n\n"
-            "১. যেকোনো টিকটক বা রিলস ভিডিওর লিংক কপি করুন।\n"
+            "১. TikTok, Facebook, Instagram বা YouTube থেকে যেকোনো ভিডিওর লিংক কপি করুন।\n"
             "২. সরাসরি এই চ্যাটে পেস্ট করে পাঠিয়ে দিন।\n"
-            "৩. বট ম্যাজিকের মতো আপনার লিংকটি প্রসেস করে ভিডিও পাঠিয়ে দেবে এবং চ্যাট একদম পরিষ্কার রাখবে।\n\n"
-            "💡 *বিশেষত্ব:* এটি কোনো ভারী ডাউনলোড প্রসেস চালায় না, তাই সার্ভার ১০০% ফাস্ট ও নিরাপদ থাকে।"
+            "৩. বট স্বয়ংক্রিয়ভাবে মাল্টিপল এপিআই সুইচ করে সেরা ভিডিওটি আপনার কাছে পৌঁছে দেবে!\n\n"
+            "🛡️ *বিশেষত্ব:* সার্ভারে কোনো ভারী ফাইল ডাউনলোড হয় না, তাই এটি আজীবন ফ্রি ও সুপার ফাস্ট।"
         )
         await query.edit_message_text(guide_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 হোম মেনুতে ফিরে যান", callback_data="back_home")]]))
 
     elif query.data == "bot_status":
         await query.edit_message_text(
             "🟢 *বটের বর্তমান অবস্থা:*\n\n"
-            "• সার্ভার ক্লাউড: আল্ট্রা-ফাস্ট ও অপ্টিমাইজড\n"
-            "• মেমোরি লিক: জিরো (শূন্য)\n"
-            "• সিস্টেম: এপিআই ড্রাইভড\n\n"
-            "সবকিছু একদম নিখুঁতভাবে কাজ করছে!", 
+            "• ক্লাউড সার্ভার: অপ্টিমাইজড ও সচল\n"
+            "• এপিআই ফলব্যাক সিস্টেম: সক্রিয় (Active)\n"
+            "• মেমোরি লিক: শূন্য (Zero Crash)", 
             parse_mode="Markdown", 
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 হোম মেনুতে ফিরে যান", callback_data="back_home")]]))
 
@@ -113,7 +196,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "🛠️ *অ্যাডমিন কন্ট্রোল প্যানেল:*\n\n"
                 "• ওনার: @NahidDevOfficial\n"
                 "• স্ট্যাটাস: সুপারভাইজর এক্সেস গ্রান্টেড\n"
-                "• প্রটোকল: জিরো-ক্র্যাশ এপিআই মোড", 
+                "• প্রটোকল: মাল্টি-এপিআই মোড", 
                 parse_mode="Markdown", 
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 হোম মেনুতে ফিরে যান", callback_data="back_home")]]))
         else:
@@ -126,7 +209,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton("📌 ব্যবহারবিধি", callback_data="help_guide")
             ],
             [
-                InlineKeyboardButton("💬 সরাসরি যোগাযোগ", url=f"https://t.me/{ADMIN_USERNAME}")
+                InlineKeyboardButton("💬 অ্যাডমিন যোগাযোগ", url=f"https://t.me/{ADMIN_USERNAME}")
             ],
             [
                 InlineKeyboardButton("🟢 সার্ভার লাইভ স্ট্যাটাস", callback_data="bot_status")
@@ -141,7 +224,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-# লিংক ও মেসেজ হ্যান্ডলার (ইনস্ট্যান্ট এপিআই প্রসেসিং ও অটো-ডিলিট)
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -150,7 +232,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_msg_id = update.message.message_id
 
-    # যদি লিংক না হয়, তবে মেসেজ সাথে সাথে ডিলিট
+    # লিংক না হলে মেসেজ ডিলিট
     if not (url.startswith("http://") or url.startswith("https://")):
         try:
             await update.message.delete()
@@ -158,31 +240,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         return
 
-    # প্রসেসিং মেসেজ
-    msg = await update.message.reply_text("⚡ ভিডিও ফেচ করা হচ্ছে, একটু অপেক্ষা করুন...")
+    msg = await update.message.reply_text("⚡ মাল্টি-এপিআই প্রসেসিং চলছে, একটু অপেক্ষা করুন...")
     
     try:
-        # ইউজারের পাঠানো লিংক মেসেজ মুছে ফেলা যাতে চ্যাট পরিষ্কার থাকে
+        # ইউজারের পাঠানো লিংক মেসেজ মুছে ফেলা
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=user_msg_id)
         except Exception:
             pass
 
-        # এপিআই থেকে ভিডিওর ডাইরেক্ট লিংক নিয়ে আসা
-        direct_video_url = await get_video_download_link(url)
+        # ইউনিভার্সাল এপিআই থেকে ভিডিও ফেচ করা
+        direct_video_url = await get_universal_video(url)
         
         if direct_video_url:
-            # সরাসরি লিংক দিয়ে ভিডিও পাঠিয়ে দেওয়া (সার্ভারে কোনো ফাইল ডাউনলোডের ঝামেলা নেই!)
-            await context.bot.send_video(chat_id=chat_id, video=direct_video_url, caption="✨ আপনার ভিডিও সফলভাবে ডাউনলোড করা হয়েছে!")
+            await context.bot.send_video(
+                chat_id=chat_id, 
+                video=direct_video_url, 
+                caption="✨ ভিডিও সফলভাবে ডাউনলোড করা হয়েছে!"
+            )
             await msg.delete()
         else:
-            await msg.edit_text("❌ এই লিংকটি থেকে ভিডিও সংগ্রহ করা সম্ভব হয়নি। অন্য কোনো লিংক দিয়ে চেষ্টা করুন।")
+            await msg.edit_text("❌ এই লিংক থেকে ভিডিও সংগ্রহ করা সম্ভব হয়নি। অন্য কোনো লিংক দিয়ে চেষ্টা করুন।")
             
     except Exception as e:
         await msg.edit_text("⚠️ প্রসেসিংয়ের সময় সামান্য সমস্যা হয়েছে। আবার চেষ্টা করুন।")
         print(f"Error: {e}")
 
-# মেইন ফাংশন
 def main():
     TOKEN = os.environ.get("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
     
@@ -192,7 +275,7 @@ def main():
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
-    print("Super-Smooth API Bot is running...")
+    print("Multi-API Fallback Bot is running successfully...")
     application.run_polling()
 
 if __name__ == '__main__':
