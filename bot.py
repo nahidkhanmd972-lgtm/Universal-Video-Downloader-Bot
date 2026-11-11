@@ -11,7 +11,7 @@ from telegram.ext import (
     ContextTypes
 )
 
-# বটের টোকেন এবং RapidAPI Key এনভায়রনমেন্ট থেকে রিড করা (অথবা সরাসরি সেট করা)
+# বটের টোকেন এবং আপনার RapidAPI Key
 TOKEN = os.getenv("BOT_TOKEN")
 RAPIDAPI_KEY = "4c9f903088mshf63f5b4780b69e2p1a9597jsna0c90125621d"
 
@@ -32,29 +32,11 @@ WAITING_MESSAGES = [
 ]
 
 # ==========================================
-# RapidAPI ও মাল্টি-ব্যাকআপ ডাউনলোডার লজিক
+# RapidAPI (`downloadMedia`) ও ব্যাকআপ লজিক
 # ==========================================
 
 async def fetch_universal_video(url: str):
-    # ১. প্রথমে RapidAPI ব্যবহার করে ভিডিও ফেচ করার চেষ্টা (Facebook, YouTube, Insta, TikTok সবকিছুর জন্য)
-    rapid_apis = [
-        {
-            "url": "https://all-in-one-video-downloader.p.rapidapi.com/get", # অথবা আপনার সাবস্ক্রাইব করা এপিআই এন্ডপয়েন্ট
-            "host": "all-in-one-video-downloader.p.rapidapi.com"
-        },
-        {
-            "url": "https://social-media-video-downloader.p.rapidapi.com/v1/social/autodown",
-            "host": "social-media-video-downloader.p.rapidapi.com"
-        }
-    ]
-
-    # সার্বজনীন ফ্রি ব্যাকআপ এপিআই (Cobalt & TikWM)
-    public_apis = [
-        "https://api.cobalt.tools/api/json",
-        "https://co.wuk.sh/api/json"
-    ]
-
-    # টিকটকের জন্য ডেডিকেটেড চেক
+    # ১. টিকটকের জন্য ডেডিকেটেড ব্যাকআপ
     if "tiktok.com" in url or "douyin.com" in url or "vm.tiktok.com" in url:
         try:
             res = requests.get(f"https://tikwm.com/api/?url={url}", timeout=6).json()
@@ -63,28 +45,42 @@ async def fetch_universal_video(url: str):
         except:
             pass
 
-    # RapidAPI দিয়ে ট্রাই করা
-    for api in rapid_apis:
-        try:
-            headers = {
-                "X-RapidAPI-Key": RAPIDAPI_KEY,
-                "X-RapidAPI-Host": api["host"],
-                "Content-Type": "application/json"
-            }
-            response = requests.get(api["url"], headers=headers, params={"url": url}, timeout=8)
-            res_data = response.json()
-            
-            # বিভিন্ন এপিআই রেসপন্স স্ট্রাকচার হ্যান্ডেল করা
-            if "medias" in res_data and len(res_data["medias"]) > 0:
-                return res_data["medias"][0]["url"]
-            elif "url" in res_data:
-                return res_data["url"]
-            elif "link" in res_data:
-                return res_data["link"]
-        except:
-            continue
+    # ২. আপনার সঠিক RapidAPI Host এবং Endpoint দিয়ে রিকোয়েস্ট পাঠানো
+    rapid_api_url = "https://all-in-one-media-downloader-api.p.rapidapi.com/downloadMedia"
+    rapid_api_host = "all-in-one-media-downloader-api.p.rapidapi.com"
 
-    # যদি RapidAPI কাজ না করে, তবে পাবলিক ব্যাকআপ এপিআই দিয়ে ট্রাই করবে
+    try:
+        headers = {
+            "X-RapidAPI-Key": RAPIDAPI_KEY,
+            "X-RapidAPI-Host": rapid_api_host,
+            "Content-Type": "application/json"
+        }
+        response = requests.get(rapid_api_url, headers=headers, params={"url": url}, timeout=10)
+        res_data = response.json()
+        
+        # এপিআই রেসপন্স থেকে বিভিন্ন ফরম্যাটে ভিডিও লিংক খুঁজে বের করা
+        if "data" in res_data:
+            if isinstance(res_data["data"], str) and res_data["data"].startswith("http"):
+                return res_data["data"]
+            elif isinstance(res_data["data"], dict):
+                for key in ["url", "link", "download", "play", "video"]:
+                    if key in res_data["data"]:
+                        return res_data["data"][key]
+        
+        if "url" in res_data:
+            return res_data["url"]
+        elif "link" in res_data:
+            return res_data["link"]
+        elif "medias" in res_data and len(res_data["medias"]) > 0:
+            return res_data["medias"][0]["url"]
+    except Exception as e:
+        print(f"RapidAPI Error: {e}")
+
+    # ৩. পাবলিক ব্যাকআপ এপিআই (Cobalt)
+    public_apis = [
+        "https://api.cobalt.tools/api/json",
+        "https://co.wuk.sh/api/json"
+    ]
     for api in public_apis:
         try:
             headers = {
@@ -226,7 +222,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     BOT_STATS["unique_users"].add(user.id)
 
-    # ইউজারের পাঠানো লিংক সাথে সাথে ডিলিট করে দেওয়া
     try:
         await update.message.delete()
     except Exception:
@@ -264,13 +259,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if direct_video_url:
             BOT_STATS["total_downloads"] += 1
             
-            # ভিডিও পাঠানো হবে (চ্যাটে স্থায়ী থাকবে)
             await context.bot.send_video(
                 chat_id=chat_id, 
                 video=direct_video_url, 
                 caption=f"✨ সফলভাবে ভিডিও ডাউনলোড করা হয়েছে!\n📥 Powered by @{ADMIN_USERNAME}"
             )
-            # প্রসেসিং মেসেজ ডিলিট করে দেওয়া
             await msg.delete()
         else:
             await msg.edit_text("❌ এই লিংক থেকে ভিডিও সংগ্রহ করা সম্ভব হয়নি। পাবলিক ভিডিওর লিংক দিয়ে আবার চেষ্টা করুন।")
