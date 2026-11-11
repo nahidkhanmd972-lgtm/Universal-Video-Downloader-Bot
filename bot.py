@@ -23,16 +23,20 @@ BOT_STATS = {
     "unique_users": set()
 }
 
-WAITING_MESSAGES = [
-    "☕ এক কাপ চা খান, ভিডিও নামছে...",
-    "🚀 রকেটের গতিতে লিংক থেকে ভিডিও ফেচ করা হচ্ছে...",
-    "⏳ একটু ধৈর্য ধরুন, ফাইল প্রসেসিং চলছে...",
-    "🎬 আপনার ভিডিও প্রস্তুত করা হচ্ছে, ম্যাজিক দেখুন...",
-    "🔥 দ্রুত সার্ভার থেকে ভিডিও নামানো হচ্ছে, সাথে থাকুন..."
+# ইউজারদের হাসানোর ও আনন্দ দেওয়ার জন্য ফানি এবং জমজমাট ওয়েটিং মেসেজসমূহ
+FUNNY_WAITING_MESSAGES = [
+    "☕ এক কাপ চা খান, আর চিল করুন! ভিডিও রকেটের গতিতে নামছে...",
+    "🏃‍♂️ দৌড়ান! সার্ভার থেকে ভিডিও চোর পালিয়ে আসছে আপনার ফাইলের দিকে...",
+    "🧙‍♂️ জাদুকরী মন্ত্র পড়া হচ্ছে... আব্রাবি কা ডাব্রা, ভিডিও হয়ে যা উধাও!",
+    "🍔 একটা বার্গার গিলে ফেলতে যতোক্ষণ লাগে, তার আগেই ভিডিও নামছে...",
+    "🚀 ইলন মাস্কের রকেটও হার মানবে ভাই, একটু ফুরফুরে মেজাজে থাকুন...",
+    "😎 বস, আপনার লিংকের সম্মান রাখতে গিয়ে আমার সার্ভারের মাথা নষ্ট!",
+    "🐢 কচ্ছপ নয় ভাই, এবার একদম চিতাবাঘের গতিতে ভিডিও ফেচ হচ্ছে...",
+    "✨ একটু জাদুকরী হাওয়া দিচ্ছি, ভিডিও এখনই আপনার কোলে এসে পড়ল বলে!"
 ]
 
 # ==========================================
-# RapidAPI (`downloadMedia`) ও ব্যাকআপ লজিক
+# RapidAPI ও ইউনিভার্সাল ডাউনলোডার লজিক
 # ==========================================
 
 async def fetch_universal_video(url: str):
@@ -45,7 +49,7 @@ async def fetch_universal_video(url: str):
         except:
             pass
 
-    # ২. আপনার সঠিক RapidAPI Host এবং Endpoint দিয়ে রিকোয়েস্ট পাঠানো
+    # ২. আপনার সঠিক RapidAPI Host এবং Endpoint দিয়ে ফেসবুক, ইউটিউব, ইনস্টাগ্রাম ফেচ করা
     rapid_api_url = "https://all-in-one-media-downloader-api.p.rapidapi.com/downloadMedia"
     rapid_api_host = "all-in-one-media-downloader-api.p.rapidapi.com"
 
@@ -100,7 +104,7 @@ async def fetch_universal_video(url: str):
     return None
 
 # ==========================================
-# টেলিগ্রাম মেনু ও ইন্টারফেস সিস্টেম
+# টেলিগ্রাম ইন্টারফেস ও ইনফো মেনু সিস্টেম
 # ==========================================
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -108,9 +112,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     BOT_STATS["unique_users"].add(user.id)
     
     keyboard = [
-        [
-            InlineKeyboardButton("📥 ভিডিও ডাউনলোডার (Universal)", callback_data="start_downloader")
-        ],
         [
             InlineKeyboardButton("👤 আমার প্রফাইল", callback_data="my_profile"),
             InlineKeyboardButton("📌 ব্যবহারবিধি", callback_data="help_guide")
@@ -127,9 +128,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     welcome_text = (
         f"স্বাগতম, *{user.first_name}*! 🚀\n\n"
-        "🤖 এটি আপনার প্রিমিয়াম ও সুপার-পাওয়ারফুল ভিডিও ডাউনলোডার বট!\n"
-        "YouTube, Facebook, TikTok বা Instagram—যেকোনো প্ল্যাটফর্মের ভিডিও নামাতে চাইলে নিচের বাটনটি ব্যবহার করুন।\n\n"
-        "👇 অপশনটি সিলেক্ট করুন:"
+        "🤖 এটি আপনার একদম **উন্মুক্ত ও সুপার-ফাস্ট ইউনিভার্সাল ভিডিও ডাউনলোডার বট**!\n\n"
+        "💡 **কোনো বাটন বা ঝামেলা নেই!** সরাসরি চ্যাটে Facebook, YouTube, TikTok বা Instagram-এর যেকোনো ভিডিওর লিংক পেস্ট করে পাঠিয়ে দিন—বট ম্যাজিক দেখাবে!\n\n"
+        "👇 নিচের মেনু থেকে বটের তথ্য বা সাহায্য দেখতে পারেন:"
     )
     
     try:
@@ -144,28 +145,21 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     await query.answer()
     
-    if query.data == "start_downloader":
-        context.user_data['waiting_for_link'] = True
-        await query.edit_message_text(
-            "📥 *ভিডিও ডাউনলোডার মোড সচল আছে!*\n\nএখন YouTube, Facebook, TikTok বা Instagram-এর যেকোনো ভিডিও বা রিলসের লিংকটি সরাসরি চ্যাটে পেস্ট করে পাঠিয়ে দিন।",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 মেনুতে ফিরে যান", callback_data="back_home")]]))
-
-    elif query.data == "my_profile":
+    if query.data == "my_profile":
         profile_text = (
             f"👤 *ইউজার প্রফাইল:*\n\n"
             f"• নাম: {user.first_name}\n"
             f"• আইডি: `{user.id}`\n\n"
-            f"🟢 ডাউনলোডার বট পুরোপুরি সচল ও নিরাপদ আছে।"
+            f"🟢 ডাউনলোডার বট সম্পূর্ণ উন্মুক্ত ও সচল আছে।"
         )
         await query.edit_message_text(profile_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 মেনুতে ফিরে যান", callback_data="back_home")]]))
 
     elif query.data == "help_guide":
         guide_text = (
             "📌 *ব্যবহারবিধি:*\n\n"
-            "১. মেনু থেকে **ভিডিও ডাউনলোডার** বাটনে ক্লিক করুন।\n"
-            "২. এরপর আপনার পছন্দের যেকোনো প্ল্যাটফর্মের লিংক পাঠান।\n"
-            "৩. চ্যাট বক্স পরিষ্কার রাখতে আপনার লিংক ও প্রসেসিং টেক্সট স্বয়ংক্রিয়ভাবে মুছে যাবে।"
+            "১. কোনো কিছু সিলেক্ট করা লাগবে না! সরাসরি যেকোনো ভিডিওর লিংক চ্যাটে পেস্ট করুন।\n"
+            "২. ফেসবুক, ইউটিউব, টিকটক—সব লিংক সরাসরি কাজ করবে।\n"
+            "৩. চ্যাট বক্স পরিষ্কার রাখতে আপনার পাঠানো লিংক সাথে সাথে ভ্যানিশ হয়ে যাবে।"
         )
         await query.edit_message_text(guide_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 মেনুতে ফিরে যান", callback_data="back_home")]]))
 
@@ -185,12 +179,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("আপনার এই এক্সেস নেই!", show_alert=True)
 
     elif query.data == "back_home":
-        context.user_data.pop('waiting_for_link', None)
-        
         keyboard = [
-            [
-                InlineKeyboardButton("📥 ভিডিও ডাউনলোডার (Universal)", callback_data="start_downloader")
-            ],
             [
                 InlineKeyboardButton("👤 আমার প্রফাইল", callback_data="my_profile"),
                 InlineKeyboardButton("📌 ব্যবহারবিধি", callback_data="help_guide")
@@ -203,13 +192,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append([InlineKeyboardButton("🛠️ অ্যাডমিন স্ট্যাটস প্যানেল", callback_data="admin_panel")])
         
         await query.edit_message_text(
-            "স্বাগতম! নিচের অপশনগুলো থেকে বেছে নিন:",
+            "স্বাগতম! সরাসরি ভিডিওর লিংক পাঠান অথবা নিচের অপশনগুলো দেখুন:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
 
 # ==========================================
-# মেসেজ ও অটো-ডিলিট হ্যান্ডলার
+# ডিরেক্ট লিংক হ্যান্ডলার ও অটো-ডিলিট সিস্টেম
 # ==========================================
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -222,26 +211,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     BOT_STATS["unique_users"].add(user.id)
 
+    # ইউজারের পাঠানো টেক্সট বা লিংক সাথে সাথে ডিলিট করে দেওয়া (চ্যাট বক্স পরিষ্কার রাখার জন্য)
     try:
         await update.message.delete()
     except Exception:
         pass
 
-    if not context.user_data.get('waiting_for_link'):
-        warning_msg = await context.bot.send_message(
-            chat_id=chat_id, 
-            text="⚠️ দয়া করে প্রথমে মেনু থেকে **ভিডিও ডাউনলোডার** বাটনে ক্লিক করুন!"
-        )
-        context.job_queue.run_once(
-            lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=warning_msg.message_id), 
-            4
-        )
-        return
-
+    # যদি লেখাটি কোনো লিংক না হয়
     if not (text.startswith("http://") or text.startswith("https://")):
         warning_msg = await context.bot.send_message(
             chat_id=chat_id, 
-            text="❌ এটি কোনো সঠিক ভিডিওর লিংক নয়! দয়া করে সঠিক লিংক পাঠান।"
+            text="⚠️ ভাইরে ভাই, আবলতাবল কথা না লিখে একটা কাজের মতো ফেসবুক বা ইউটিউবের লিংক পাঠান! 😂"
         )
         context.job_queue.run_once(
             lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=warning_msg.message_id), 
@@ -249,31 +229,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    random_wait_text = random.choice(WAITING_MESSAGES)
-    msg = await context.bot.send_message(chat_id=chat_id, text=random_wait_text)
+    # র্যান্ডম ফানি ওয়েটিং মেসেজ পাঠানো
+    random_funny_text = random.choice(FUNNY_WAITING_MESSAGES)
+    msg = await context.bot.send_message(chat_id=chat_id, text=random_funny_text)
     
     try:
         direct_video_url = await fetch_universal_video(text)
-        context.user_data.pop('waiting_for_link', None)
 
         if direct_video_url:
             BOT_STATS["total_downloads"] += 1
             
+            # ডাউনলোড করা ভিডিওটি পাঠানো হবে (চ্যাটে স্থায়ী থাকবে)
             await context.bot.send_video(
                 chat_id=chat_id, 
                 video=direct_video_url, 
-                caption=f"✨ সফলভাবে ভিডিও ডাউনলোড করা হয়েছে!\n📥 Powered by @{ADMIN_USERNAME}"
+                caption=f"✨ বসের ভিডিও সফলভাবে হাজির!\n📥 Powered by @{ADMIN_USERNAME}"
             )
+            # ফানি প্রসেসিং মেসেজটি ডিলিট করে দেওয়া
             await msg.delete()
         else:
-            await msg.edit_text("❌ এই লিংক থেকে ভিডিও সংগ্রহ করা সম্ভব হয়নি। পাবলিক ভিডিওর লিংক দিয়ে আবার চেষ্টা করুন।")
+            await msg.edit_text("❌ এই লিংক থেকে ভিডিও নামানো গেল না বস! হয়তো ভিডিওটি প্রাইভেট করা আছে বা লিংক ভুল। পাবলিক লিংক দিয়ে আবার চেষ্টা করুন।")
             context.job_queue.run_once(
                 lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=msg.message_id), 
                 5
             )
             
     except Exception as e:
-        await msg.edit_text("⚠️ প্রসেসিংয়ের সময় সামান্য সমস্যা হয়েছে। আবার চেষ্টা করুন।")
+        await msg.edit_text("⚠️ উফ! সার্ভারে একটু খিকটু হয়েছে। আবার একটু কষ্ট করে লিংকটা পাঠান তো দেখি।")
         context.job_queue.run_once(
             lambda ctx: ctx.bot.delete_message(chat_id=chat_id, message_id=msg.message_id), 
             4
@@ -291,7 +273,7 @@ def main():
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
-    print("Universal RapidAPI Video Downloader Bot is running...")
+    print("Direct Open Video Downloader Bot with Funny Messages is running...")
     application.run_polling()
 
 if __name__ == '__main__':
