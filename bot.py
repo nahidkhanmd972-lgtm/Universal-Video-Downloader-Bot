@@ -41,7 +41,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("NahidDownloaderPro")
 
-# Credentials (Environment Variables থেকে রিড করবে)
+# Credentials (Environment Variables)
 TOKEN = os.getenv("BOT_TOKEN")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "")
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST", "youtube-media-downloader.p.rapidapi.com")
@@ -51,15 +51,15 @@ COOKIES_FILE = os.getenv("COOKIES_FILE", "")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "8815124111"))
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "NahidDevOfficial")
 
-# কাস্টম অ্যানিমেটেড থ্রিডি লোগো ইউআরএল
+# Custom Animated 3D Logo URL
 BOT_LOGO_URL = os.getenv(
     "BOT_LOGO_URL",
     "https://user55725.cn.imgto.link/public/20261113/3b13a0dfe6eaa21ad1c15b4f-1000483594.avif"
 )
 
-MAX_UPLOAD_LIMIT = 48 * 1024 * 1024  # 48 MB (Telegram limit safe margin)
+MAX_UPLOAD_LIMIT = 48 * 1024 * 1024  # 48 MB
 STATS_FILE = "stats.json"
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
 ACTIVE_CANCELS = {}
 JOB_PROGRESS = {}
@@ -70,10 +70,7 @@ JOB_PROGRESS = {}
 LANG_NAMES = {
     "en": "🇬🇧 English",
     "ms": "🇲🇾 Melayu",
-    "bn": "🇧🇩 বাংলা",
-    "id": "🇮🇩 Indonesia",
-    "ar": "🇸🇦 العربية",
-    "es": "🇪🇸 Español"
+    "bn": "🇧🇩 বাংলা"
 }
 
 L10N = {
@@ -82,16 +79,17 @@ L10N = {
         "btn_profile": "👤 My Profile", "btn_stats": "📊 Live Statistics", "btn_guide": "ℹ️ User Guide",
         "btn_lang": "🌐 Language", "btn_feedback": "✍️ Feedback", "btn_admin": "💬 Admin",
         "btn_back": "🔙 Back", "btn_cancel": "❌ Cancel", "btn_dl": "📥 Direct High-Speed Download",
+        "profile": "👤 <b>User Account Overview</b>\n\n• <b>Name:</b> {name}\n• <b>User ID:</b> <code>{user_id}</code>\n• <b>Language:</b> {lang}\n• <b>Access Tier:</b> <code>Unlimited Turbo Access</code>",
         "stats": "📊 <b>Global Stats</b>\n\n👥 Users: <code>{users:,}</code>\n📥 Processed: <code>{downloads:,}</code>\n🟢 Status: <code>Online 24/7</code>",
         "guide": "📌 <b>Quick Guide:</b>\n1. Send any video link.\n2. Under 50MB comes directly to chat.\n3. Large files generate a fast direct download link.",
         "choose_lang": "🌐 <b>Select your preferred language:</b>",
         "lang_changed": "✅ <b>Language successfully updated!</b>",
         "feedback_prompt": "✍️ <b>Send Feedback</b>\nType your message below for the admin:",
         "feedback_ok": "✅ <b>Thank you!</b> Message sent to admin.",
-        "invalid": "🚨 <b>Please send a valid YouTube, Facebook, TikTok, or Instagram link! 😂</b>",
+        "invalid": "🚨 <b>Hey boss! Please send a valid YouTube, Facebook, TikTok, or Instagram link! 😂</b>",
         "delivered": "🎬 <b>Video Processed Successfully!</b>\n📥 Powered by @{admin}",
         "large": "📦 <b>Large Video File Detected! (> 50MB)</b>\nClick below to download directly:",
-        "failed": "❌ <b>Extraction Failed!</b>\nThe video may be private, restricted, or region-locked. Please check the link and try again!",
+        "failed": "❌ <b>Extraction Failed, Boss!</b>\nThe video may be private, restricted, or region-locked. Try another public link!",
         "cancelled": "❌ <b>Download Cancelled!</b>", "status": "Downloading High-Speed Media...",
         "quotes": [
             "☕ Grab a cup of coffee! Server hamsters running on nitro...",
@@ -108,6 +106,7 @@ L10N = {
         "btn_profile": "👤 Profil Saya", "btn_stats": "📊 Statistik Langsung", "btn_guide": "ℹ️ Panduan Pengguna",
         "btn_lang": "🌐 Bahasa", "btn_feedback": "✍️ Maklum Balas", "btn_admin": "💬 Admin",
         "btn_back": "🔙 Kembali", "btn_cancel": "❌ Batal", "btn_dl": "📥 Muat Turun Pantas",
+        "profile": "👤 <b>Gambaran Keseluruhan Akaun</b>\n\n• <b>Nama:</b> {name}\n• <b>ID Pengguna:</b> <code>{user_id}</code>\n• <b>Bahasa:</b> {lang}\n• <b>Akses:</b> <code>Akses Turbo Tanpa Had</code>",
         "stats": "📊 <b>Statistik Global</b>\n\n👥 Pengguna: <code>{users:,}</code>\n📥 Diproses: <code>{downloads:,}</code>\n🟢 Status: <code>Online 24/7</code>",
         "guide": "📌 <b>Panduan Pantas:</b>\n1. Hantar sebarang pautan video.\n2. Bawah 50MB dihantar terus ke chat.\n3. Fail besar menjana pautan muat turun pantas.",
         "choose_lang": "🌐 <b>Pilih bahasa pilihan anda:</b>",
@@ -134,16 +133,17 @@ L10N = {
         "btn_profile": "👤 আমার প্রোফাইল", "btn_stats": "📊 লাইভ পরিসংখ্যান", "btn_guide": "ℹ️ ব্যবহারবিধি",
         "btn_lang": "🌐 ভাষা", "btn_feedback": "✍️ মতামত", "btn_admin": "💬 অ্যাডমিন",
         "btn_back": "🔙 ফিরে যান", "btn_cancel": "❌ বাতিল", "btn_dl": "📥 সরাসরি ডাউনলোড করুন",
+        "profile": "👤 <b>ব্যবহারকারী অ্যাকাউন্ট বিবরণী</b>\n\n• <b>নাম:</b> {name}\n• <b>ইউজার আইডি:</b> <code>{user_id}</code>\n• <b>ভাষা:</b> {lang}\n• <b>অ্যাক্সেস টায়ার:</b> <code>আনলিমিটেড টার্বো অ্যাক্সেস</code>",
         "stats": "📊 <b>লাইভ পরিসংখ্যান</b>\n\n👥 ব্যবহারকারী: <code>{users:,}</code>\n📥 ডাউনলোড: <code>{downloads:,}</code>\n🟢 সার্ভার: <code>Online 24/7</code>",
         "guide": "📌 <b>ব্যবহারবিধি</b>\n১. যেকোনো ভিডিওর লিংক দিন।\n২. ৫০MB-এর কম হলে চ্যাটেই পাবেন।\n৩. বড় হলে ডাইরেক্ট ডাউনলোড বাটন আসবে।",
         "choose_lang": "🌐 <b>আপনার পছন্দের ভাষা সিলেক্ট করুন:</b>",
         "lang_changed": "✅ <b>ভাষা সফলভাবে পরিবর্তন হয়েছে!</b>",
         "feedback_prompt": "✍️ <b>মতামত লিখুন</b>\nআপনার মেসেজ সরাসরি অ্যাডমিনের কাছে যাবে:",
         "feedback_ok": "✅ <b>ধন্যবাদ!</b> অ্যাডমিনের কাছে পাঠানো হয়েছে।",
-        "invalid": "🚨 <b>আরে ভাই, সঠিক ফেসবুক, ইনস্টাগ্রাম, ইউটিউব বা টিকটকের লিংক পাঠান! 😂</b>",
+        "invalid": "🚨 <b>আরে বস, সঠিক ফেসবুক, ইনস্টাগ্রাম, ইউটিউব বা টিকটকের লিংক পাঠান! 😂</b>",
         "delivered": "🎬 <b>ভিডিও সফলভাবে হাজির!</b>\n📥 Powered by @{admin}",
         "large": "📦 <b>ভিডিও ফাইলের সাইজ বড়! (> ৫০MB)</b>\nনিচের বাটনে ক্লিক করে সরাসরি ডাউনলোড করে নিন:",
-        "failed": "❌ <b>ভিডিও আনা যায়নি!</b>\nভিডিওটি প্রাইভেট বা রেস্ট্রিক্টেড হতে পারে। সঠিক পাবলিক লিংক দিয়ে আবার চেষ্টা করুন!",
+        "failed": "❌ <b>ভিডিও আনা যায়নি বস!</b>\nভিডিওটি প্রাইভেট বা রেস্ট্রিক্টেড হতে পারে। সঠিক পাবলিক লিংক দিয়ে আবার চেষ্টা করুন!",
         "cancelled": "❌ <b>ডাউনলোড বাতিল করা হয়েছে!</b>", "status": "ডাউনলোড হচ্ছে...",
         "quotes": [
             "☕ এক কাপ চা খান! সার্ভারের হ্যামস্টারগুলো রকেটের গতিতে ছুটছে...",
@@ -158,7 +158,7 @@ L10N = {
 }
 
 # ---------------------------------------------------------------------------
-# 3. Persistent Database Handler
+# 3. Persistent Database Handler (Default to 'en')
 # ---------------------------------------------------------------------------
 STATS_FILE = "stats.json"
 
@@ -190,7 +190,8 @@ def save_db():
 DB = load_db()
 
 def get_lang(uid: int) -> str:
-    return DB["user_langs"].get(str(uid), "en")  # ডিফল্ট ইংরেজি
+    # Default is English (en) unless changed
+    return DB["user_langs"].get(str(uid), "en")
 
 def tr(uid: int, key: str) -> str:
     lang = get_lang(uid)
@@ -213,7 +214,7 @@ def run_http_server():
     HTTPServer(("0.0.0.0", port), HealthCheckHandler).serve_forever()
 
 # ---------------------------------------------------------------------------
-# 5. URL Helpers & Downloader Engines (Ultra-Reliable Setup)
+# 5. URL Helpers & Downloader Engines
 # ---------------------------------------------------------------------------
 def is_youtube(url: str) -> bool:
     return "youtube.com" in url or "youtu.be" in url
@@ -325,7 +326,7 @@ def download_with_ytdlp(url: str, output_path: str, job_id: str):
         "socket_timeout": 35,
         "progress_hooks": [hook],
         "http_headers": {
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "Accept-Language": "en-US,en;q=0.9",
         },
         "extractor_args": {"youtube": {"player_client": ["ios", "android", "mweb"]}},
@@ -412,8 +413,8 @@ def build_main_menu(user_id: int):
 def build_lang_menu():
     codes = list(LANG_NAMES.keys())
     rows = [
-        [InlineKeyboardButton(LANG_NAMES[c], callback_data=f"setlang_{c}") for c in codes[i:i + 2]]
-        for i in range(0, len(codes), 2)
+        [InlineKeyboardButton(LANG_NAMES[c], callback_data=f"setlang_{c}")]
+        for c in codes
     ]
     return InlineKeyboardMarkup(rows)
 
@@ -445,7 +446,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
     
-    # প্রথমবার সবসময় ইংরেজিতে গ্রিটিংস ও নামসহ ওয়েলকাম জানাবে
+    # Always default to English greeting with user's name
     await send_banner_safe(
         update.effective_chat.id,
         L10N["en"]["welcome"].format(name=user.first_name),
@@ -461,8 +462,13 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    text = f"👤 <b>User Profile</b>\n\n• <b>Name:</b> {user.first_name}\n• <b>ID:</b> <code>{user.id}</code>\n• <b>Language:</b> {LANG_NAMES.get(get_lang(user.id), 'English')}"
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+    uid = user.id
+    name = f"{user.first_name} {user.last_name or ''}".strip()
+    lang_display = LANG_NAMES.get(get_lang(uid), "English")
+    text = tr(uid, "profile").format(name=name, user_id=uid, lang=lang_display)
+    
+    back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(tr(uid, "btn_back"), callback_data="btn_home")]])
+    await update.message.reply_text(text, reply_markup=back_kb, parse_mode=ParseMode.HTML)
 
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["feedback_mode"] = True
@@ -481,7 +487,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data.startswith("setlang_"):
-        DB["user_langs"][str(user.id)] = data.replace("setlang_", "")
+        selected_lang = data.replace("setlang_", "")
+        DB["user_langs"][str(user.id)] = selected_lang
         save_db()
         text = f"{tr(user.id, 'lang_changed')}\n\n{tr(user.id, 'welcome').format(name=user.first_name)}"
         await edit_any(query.message, text, build_main_menu(user.id))
@@ -497,11 +504,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_any(query.message, tr(user.id, "stats").format(users=len(DB["unique_users"]), downloads=DB["total_downloads"]), back_kb)
     elif data == "btn_guide":
         await edit_any(query.message, tr(user.id, "guide"), back_kb)
+    elif data == "btn_profile":
+        name = f"{user.first_name} {user.last_name or ''}".strip()
+        lang_display = LANG_NAMES.get(get_lang(user.id), "English")
+        prof_txt = tr(user.id, "profile").format(name=name, user_id=user.id, lang=lang_display)
+        await edit_any(query.message, prof_txt, back_kb)
     elif data == "btn_home":
-        await edit_any(query.message, tr(user.id, "welcome").format(name=user.first_name), build_main_menu(user.id))
+        await edit_any(query.message, L10N["en"]["welcome"].format(name=user.first_name), build_main_menu(user.id))
 
 # ---------------------------------------------------------------------------
-# 8. Core Message Handler & Downloader Pipeline (Ultra-Robust)
+# 8. Core Message Handler & Downloader Pipeline
 # ---------------------------------------------------------------------------
 async def handle_incoming_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
@@ -605,7 +617,7 @@ async def handle_incoming_message(update: Update, context: ContextTypes.DEFAULT_
                 logger.warning(f"yt-dlp fallback error: {e}")
                 return False
 
-        # --- Ultra-Robust Multi-Layer Routing ---
+        # --- Ultra-Robust Multi-Layer Routing for FB, YT, TikTok, IG ---
         if yt:
             if RAPIDAPI_KEY:
                 for lk in rapidapi_youtube_links(cleaned_url)[:3]:
@@ -697,7 +709,7 @@ def main():
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_incoming_message))
 
-    logger.info("Nahid Video Downloader Pro is 100% LIVE & Running 24/7 with Ultra-Robust Setup!")
+    logger.info("Nahid Video Downloader Pro is 100% LIVE & Running 24/7 with Profile & Animation Fixes!")
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
