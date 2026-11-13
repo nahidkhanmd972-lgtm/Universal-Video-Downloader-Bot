@@ -1,14 +1,28 @@
-# পাইথনের অফিশিয়াল লাইটওয়েট ইমেজ ব্যবহার করা
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# ওয়ার্কিং ডিরেক্টরি সেট করা
+# Install system dependencies (Native FFmpeg, SSL certificates, curl)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Optimize Python execution
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8080
+
 WORKDIR /app
 
-# প্রজেক্টের সব ফাইল কপি করে কন্টেইনারে নিয়ে যাওয়া
-COPY . /app
-
-# প্রয়োজনীয় পাইথন লাইব্রেরি ইনস্টল করা
+# Install dependencies first for Docker layer caching
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# বট স্টার্ট করার কমান্ড
+# Copy bot source code
+COPY . .
+
+# Expose Render/Web keep-alive port
+EXPOSE 8080
+
+# Execute bot
 CMD ["python", "bot.py"]
