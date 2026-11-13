@@ -65,7 +65,7 @@ ACTIVE_CANCELS = {}
 JOB_PROGRESS = {}
 
 # ---------------------------------------------------------------------------
-# 2. Multi-Language Dictionary (Global Support: English, Malay, Bengali, Indonesian, Arabic, Spanish)
+# 2. Multi-Language Dictionary (Default: English)
 # ---------------------------------------------------------------------------
 LANG_NAMES = {
     "en": "🇬🇧 English",
@@ -91,7 +91,7 @@ L10N = {
         "invalid": "🚨 <b>Please send a valid YouTube, Facebook, TikTok, or Instagram link! 😂</b>",
         "delivered": "🎬 <b>Video Processed Successfully!</b>\n📥 Powered by @{admin}",
         "large": "📦 <b>Large Video File Detected! (> 50MB)</b>\nClick below to download directly:",
-        "failed": "❌ <b>Extraction Failed!</b>\nThe video may be private or restricted.",
+        "failed": "❌ <b>Extraction Failed!</b>\nThe video may be private, restricted, or region-locked. Please check the link and try again!",
         "cancelled": "❌ <b>Download Cancelled!</b>", "status": "Downloading High-Speed Media...",
         "quotes": [
             "☕ Grab a cup of coffee! Server hamsters running on nitro...",
@@ -116,7 +116,7 @@ L10N = {
         "feedback_ok": "✅ <b>Terima kasih!</b> Mesej dihantar kepada admin.",
         "invalid": "🚨 <b>Sila hantar pautan YouTube, Facebook, TikTok, atau Instagram yang sah! 😂</b>",
         "delivered": "🎬 <b>Video Berjaya Diproses!</b>\n📥 Dikuasakan oleh @{admin}",
-        "large": "📦 <b>Fail Video Besar Dikesان! (> 50MB)</b>\nKlik di bawah untuk muat turun terus:",
+        "large": "📦 <b>Fail Video Besar Dikesan! (> 50MB)</b>\nKlik di bawah untuk muat turun terus:",
         "failed": "❌ <b>Gagal Mengekstrak!</b>\nVideo mungkin peribadi atau disekat.",
         "cancelled": "❌ <b>Muat Turun Dibatalkan!</b>", "status": "Sedang memuat turun media...",
         "quotes": [
@@ -143,7 +143,7 @@ L10N = {
         "invalid": "🚨 <b>আরে ভাই, সঠিক ফেসবুক, ইনস্টাগ্রাম, ইউটিউব বা টিকটকের লিংক পাঠান! 😂</b>",
         "delivered": "🎬 <b>ভিডিও সফলভাবে হাজির!</b>\n📥 Powered by @{admin}",
         "large": "📦 <b>ভিডিও ফাইলের সাইজ বড়! (> ৫০MB)</b>\nনিচের বাটনে ক্লিক করে সরাসরি ডাউনলোড করে নিন:",
-        "failed": "❌ <b>ভিডিও আনা যায়নি!</b>\nভিডিওটি প্রাইভেট বা রেস্ট্রিক্টেড হতে পারে।",
+        "failed": "❌ <b>ভিডিও আনা যায়নি!</b>\nভিডিওটি প্রাইভেট বা রেস্ট্রিক্টেড হতে পারে। সঠিক পাবলিক লিংক দিয়ে আবার চেষ্টা করুন!",
         "cancelled": "❌ <b>ডাউনলোড বাতিল করা হয়েছে!</b>", "status": "ডাউনলোড হচ্ছে...",
         "quotes": [
             "☕ এক কাপ চা খান! সার্ভারের হ্যামস্টারগুলো রকেটের গতিতে ছুটছে...",
@@ -153,84 +153,6 @@ L10N = {
             "🧙‍♂️ জাদুমন্ত্র পড়া হচ্ছে: পিক্সেলগুলো দ্রুত এক হও!",
             "🍿 পপকর্ন নিয়ে বসুন, আপনার ভিডিও প্রায় তৈরি!",
             "🏎️ হাই-স্পিড ডেটা হাইওয়েতে ডিজিটাল ড্রাইভ চলছে..."
-        ]
-    },
-    "id": {
-        "welcome": "👋 Selamat datang di <b>Nahid Video Downloader Pro</b>, <b>{name}</b>!\n\n⚡ Kirim tautan video publik dari YouTube, Facebook, Instagram, atau TikTok untuk diunduh dalam HD!\n\n👇 <i>Gunakan menu di bawah atau kirim tautan:</i>",
-        "btn_profile": "👤 Profil Saya", "btn_stats": "📊 Statistik Langsung", "btn_guide": "ℹ️ Panduan",
-        "btn_lang": "🌐 Bahasa", "btn_feedback": "✍️ Umpan Balik", "btn_admin": "💬 Admin",
-        "btn_back": "🔙 Kembali", "btn_cancel": "❌ Batal", "btn_dl": "📥 Unduh Langsung",
-        "stats": "📊 <b>Statistik Global</b>\n\n👥 Pengguna: <code>{users:,}</code>\n📥 Diproses: <code>{downloads:,}</code>\n🟢 Status: <code>Online 24/7</code>",
-        "guide": "📌 <b>Panduan:</b> Kirim tautan video untuk diunduh secara instan.",
-        "choose_lang": "🌐 <b>Pilih bahasa Anda:</b>",
-        "lang_changed": "✅ <b>Bahasa berhasil diperbarui!</b>",
-        "feedback_prompt": "✍️ <b>Kirim Umpan Balik:</b>",
-        "feedback_ok": "✅ <b>Terima kasih!</b> Pesan terkirim ke admin.",
-        "invalid": "🚨 <b>Kirim tautan video YouTube, Facebook, TikTok, atau Instagram yang valid! 😂</b>",
-        "delivered": "🎬 <b>Video Berhasil Diproses!</b>\n📥 Didukung oleh @{admin}",
-        "large": "📦 <b>File Video Besar! (> 50MB)</b>\nKlik di bawah untuk mengunduh:",
-        "failed": "❌ <b>Gagal Mengekstrak!</b>\nVideo mungkin privat atau dibatasi.",
-        "cancelled": "❌ <b>Unduhan Dibatalkan!</b>", "status": "Mengunduh media...",
-        "quotes": [
-            "☕ Sambil ngopi, server kami memproses video Anda...",
-            "🐢 Paket unduhan meluncur dengan kecepatan cahaya!",
-            "🚀 Kecepatan transfer data maksimal!",
-            "🥷 Menyusุป keamanan platform seperti ninja siber...",
-            "🧙‍♂️ Mantra digital: Piksel berkumpul sekarang!",
-            "🍿 Siapkan popcorn, video Anda hampir siap!",
-            "🏎️ Melaju kencang di jalan tol data!"
-        ]
-    },
-    "ar": {
-        "welcome": "👋 أهلاً بك في <b>Nahid Video Downloader Pro</b> يا <b>{name}</b>!\n\n⚡ أرسل رابط أي فيديو عام من يوتيوب، فيسبوك، انستغرام، أو تيك توك للتحميل فوراً بجودة HD!\n\n👇 <i>استخدم القائمة أدناه أو أرسل الرابط:</i>",
-        "btn_profile": "👤 ملفي الشخصي", "btn_stats": "📊 الإحصائيات", "btn_guide": "ℹ️ الدليل",
-        "btn_lang": "🌐 اللغة", "btn_feedback": "✍️ ملاحظات", "btn_admin": "💬 المشرف",
-        "btn_back": "🔙 رجوع", "btn_cancel": "❌ إلغاء", "btn_dl": "📥 تحميل مباشر سريع",
-        "stats": "📊 <b>الإحصائيات العامة</b>\n\n👥 المستخدمون: <code>{users:,}</code>\n📥 المعالجة: <code>{downloads:,}</code>\n🟢 الحالة: <code>متصل 24/7</code>",
-        "guide": "📌 <b>الدليل السريع:</b> أرسل أي رابط فيديو لتحميله فوراً.",
-        "choose_lang": "🌐 <b>اختر لغتك المفضلة:</b>",
-        "lang_changed": "✅ <b>تم تحديث اللغة بنجاح!</b>",
-        "feedback_prompt": "✍️ <b>إرسال ملاحظاتك:</b>",
-        "feedback_ok": "✅ <b>شكراً لك!</b> تم إرسال رسالتك.",
-        "invalid": "🚨 <b>الرجاء إرسال رابط صحيح من يوتيوب، فيسبوك، تيك توك، أو انستغرام! 😂</b>",
-        "delivered": "🎬 <b>تم معالجة الفيديو بنجاح!</b>\n📥 مدعوم بواسطة @{admin}",
-        "large": "📦 <b>ملف فيديو كبير! (> 50MB)</b>\nانقر أدناه للتحميل المباشر:",
-        "failed": "❌ <b>فشل الاستخراج!</b>\nقد يكون الفيديو خاصاً أو محظوراً.",
-        "cancelled": "❌ <b>تم إلغاء التحميل!</b>", "status": "جارٍ تحميل الوسائط...",
-        "quotes": [
-            "☕ استمتع بفنجان قهوة بينما نعمل على تجهيز الفيديو...",
-            "🐢 حزم بيانات بسرعة فائقة في طريقها إليك!",
-            "🚀 سرعة نقل خيالية تتجاوز التوقعات!",
-            "🥷 التسلل عبر جدران الحماية مثل النينجا...",
-            "🧙‍♂️ سحر البكسلات قيد التنفيذ الآن!",
-            "🍿 جهز الفشار، فيديو عالي الدقة في طريقه للظهور!",
-            "🏎️ انطلاق بسرعة البرق في طريق البيانات السريع!"
-        ]
-    },
-    "es": {
-        "welcome": "👋 ¡Bienvenido a <b>Nahid Video Downloader Pro</b>, <b>{name}</b>!\n\n⚡ ¡Envía cualquier enlace de video público de YouTube, Facebook, Instagram o TikTok para descargarlo en HD!\n\n👇 <i>Usa el menú o envía un enlace:</i>",
-        "btn_profile": "👤 Mi Perfil", "btn_stats": "📊 Estadísticas", "btn_guide": "ℹ️ Guía",
-        "btn_lang": "🌐 Idioma", "btn_feedback": "✍️ Comentarios", "btn_admin": "💬 Admin",
-        "btn_back": "🔙 Volver", "btn_cancel": "❌ Cancelar", "btn_dl": "📥 Descarga Directa",
-        "stats": "📊 <b>Estadísticas Globales</b>\n\n👥 Usuarios: <code>{users:,}</code>\n📥 Procesados: <code>{downloads:,}</code>\n🟢 Estado: <code>Online 24/7</code>",
-        "guide": "📌 <b>Guía rápida:</b> Envía un enlace de video para descargar.",
-        "choose_lang": "🌐 <b>Selecciona tu idioma:</b>",
-        "lang_changed": "✅ <b>¡Idioma actualizado con éxito!</b>",
-        "feedback_prompt": "✍️ <b>Enviar comentarios:</b>",
-        "feedback_ok": "✅ <b>¡Gracias!</b> Mensaje enviado.",
-        "invalid": "🚨 <b>¡Envía un enlace válido de YouTube, Facebook, TikTok o Instagram! 😂</b>",
-        "delivered": "🎬 <b>¡Video procesado con éxito!</b>\n📥 Con la potencia de @{admin}",
-        "large": "📦 <b>¡Archivo grande detectado! (> 50MB)</b>\nHaz clic abajo para descargar directamente:",
-        "failed": "❌ <b>¡Falló la extracción!</b>\nEl video puede ser privado o restringido.",
-        "cancelled": "❌ <b>¡Descarga cancelada!</b>", "status": "Descargando multimedia...",
-        "quotes": [
-            "☕ ¡Tómate un café mientras procesamos tu video!",
-            "🐢 ¡Paquetes supersónicos llegando a velocidad de la luz!",
-            "🚀 ¡Velocidad de transferencia increíble!",
-            "🥷 ¡Infiltrándonos en el sistema como un ninja cibernético!",
-            "🧙‍♂️ Hechizo digital: ¡los píxeles se ensamblan!",
-            "🍿 ¡Prepara las palomitas, tu video casi está listo!",
-            "🏎️ ¡Acelerando en la autopista de datos!"
         ]
     }
 }
@@ -268,7 +190,7 @@ def save_db():
 DB = load_db()
 
 def get_lang(uid: int) -> str:
-    return DB["user_langs"].get(str(uid), "en")
+    return DB["user_langs"].get(str(uid), "en")  # ডিফল্ট ইংরেজি
 
 def tr(uid: int, key: str) -> str:
     lang = get_lang(uid)
@@ -291,7 +213,7 @@ def run_http_server():
     HTTPServer(("0.0.0.0", port), HealthCheckHandler).serve_forever()
 
 # ---------------------------------------------------------------------------
-# 5. URL Helpers & Downloader Engines
+# 5. URL Helpers & Downloader Engines (Ultra-Reliable Setup)
 # ---------------------------------------------------------------------------
 def is_youtube(url: str) -> bool:
     return "youtube.com" in url or "youtu.be" in url
@@ -394,13 +316,13 @@ def download_with_ytdlp(url: str, output_path: str, job_id: str):
             }
 
     opts = {
-        "format": "best[ext=mp4]/best",
+        "format": "best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
         "outtmpl": output_path,
         "merge_output_format": "mp4",
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
-        "socket_timeout": 30,
+        "socket_timeout": 35,
         "progress_hooks": [hook],
         "http_headers": {
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
@@ -514,25 +436,19 @@ async def set_menu_commands(application):
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    first_time = str(user.id) not in DB["user_langs"]
     DB["unique_users"].add(user.id)
     save_db()
     context.user_data["feedback_mode"] = False
-
-    if first_time:
-        await update.message.reply_text(
-            "🌐 <b>Please select your language / Sila pilih bahasa / ভাষা নির্বাচন করুন:</b>",
-            reply_markup=build_lang_menu(), parse_mode=ParseMode.HTML
-        )
-        return
 
     try:
         await update.message.delete()
     except Exception:
         pass
+    
+    # প্রথমবার সবসময় ইংরেজিতে গ্রিটিংস ও নামসহ ওয়েলকাম জানাবে
     await send_banner_safe(
         update.effective_chat.id,
-        tr(user.id, "welcome").format(name=user.first_name),
+        L10N["en"]["welcome"].format(name=user.first_name),
         build_main_menu(user.id), context
     )
 
@@ -585,7 +501,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_any(query.message, tr(user.id, "welcome").format(name=user.first_name), build_main_menu(user.id))
 
 # ---------------------------------------------------------------------------
-# 8. Core Message Handler & Downloader Pipeline
+# 8. Core Message Handler & Downloader Pipeline (Ultra-Robust)
 # ---------------------------------------------------------------------------
 async def handle_incoming_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
@@ -677,13 +593,19 @@ async def handle_incoming_message(update: Update, context: ContextTypes.DEFAULT_
         async def try_ytdlp() -> bool:
             if ACTIVE_CANCELS.get(job_id):
                 return False
+            for f in glob.glob(f"{temp_dir}/*"):
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
             try:
                 await loop.run_in_executor(None, download_with_ytdlp, cleaned_url, output_template, job_id)
                 return True
-            except Exception:
+            except Exception as e:
+                logger.warning(f"yt-dlp fallback error: {e}")
                 return False
 
-        # Platform Routing & Fallbacks
+        # --- Ultra-Robust Multi-Layer Routing ---
         if yt:
             if RAPIDAPI_KEY:
                 for lk in rapidapi_youtube_links(cleaned_url)[:3]:
@@ -698,6 +620,7 @@ async def handle_incoming_message(update: Update, context: ContextTypes.DEFAULT_
             if not download_success:
                 download_success = await try_ytdlp()
         else:
+            # Facebook, Instagram & Others: Try yt-dlp first, then generic API fallback
             download_success = await try_ytdlp()
             if not download_success:
                 g = generic_api_link(cleaned_url)
@@ -774,7 +697,7 @@ def main():
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_incoming_message))
 
-    logger.info("Nahid Video Downloader Pro is 100% LIVE & Running 24/7 with Multi-Language Support!")
+    logger.info("Nahid Video Downloader Pro is 100% LIVE & Running 24/7 with Ultra-Robust Setup!")
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
