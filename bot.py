@@ -1,9 +1,7 @@
 import os
-import os
 import re
 import json
 import glob
-import time
 import uuid
 import shutil
 import random
@@ -15,6 +13,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import requests
 import yt_dlp
+import static_ffmpeg
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.constants import ParseMode, ChatAction
 from telegram.ext import (
@@ -31,145 +30,180 @@ from telegram.request import HTTPXRequest
 # 1. System Setup & Static FFmpeg Loader
 # ---------------------------------------------------------------------------
 try:
-    import static_ffmpeg
     static_ffmpeg.add_paths()
 except Exception:
     pass
 
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
     level=logging.INFO
 )
 logger = logging.getLogger("NahidDownloaderPro")
 
-# Credentials (Environment Variables)
 TOKEN = os.getenv("BOT_TOKEN")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY", "")
-RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST", "youtube-media-downloader.p.rapidapi.com")
-GENERIC_API_HOST = os.getenv("GENERIC_API_HOST", "")
-COOKIES_FILE = os.getenv("COOKIES_FILE", "")
-
-ADMIN_ID = int(os.getenv("ADMIN_ID", "8815124111"))
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "NahidDevOfficial")
-
-# Custom Animated 3D Logo URL
-BOT_LOGO_URL = os.getenv(
-    "BOT_LOGO_URL",
-    "https://user55725.cn.imgto.link/public/20261113/3b13a0dfe6eaa21ad1c15b4f-1000483594.avif"
-)
-
-MAX_UPLOAD_LIMIT = 48 * 1024 * 1024  # 48 MB (Telegram safe limit)
+ADMIN_ID = 8815124111
+ADMIN_USERNAME = "NahidDevOfficial"
+BOT_LOGO_URL = "https://user55725.cn.imgto.link/public/20261113/fd75766042207998416adf8f-1000482026.avif"
+MAX_UPLOAD_LIMIT = 48 * 1024 * 1024
 STATS_FILE = "stats.json"
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-
-ACTIVE_CANCELS = {}
-JOB_PROGRESS = {}
 
 # ---------------------------------------------------------------------------
-# 2. Multi-Language Dictionary (Strictly Default: English)
+# 2. Multi-Language Dictionary (Default: Global English)
 # ---------------------------------------------------------------------------
-LANG_NAMES = {
-    "en": "🇬🇧 English",
-    "ms": "🇲🇾 Melayu",
-    "bn": "🇧🇩 বাংলা"
-}
-
-L10N = {
+STRINGS = {
     "en": {
         "welcome": (
             "👋 Welcome to <b>Nahid Video Downloader Pro</b>, <b>{name}</b>!\n\n"
             "⚡ <b>The Ultimate Global Media Downloader</b>\n"
-            "Drop any public video link from YouTube, Facebook, Instagram, or TikTok to download instantly in HD!\n\n"
-            "👇 <i>Use the dashboard below or send any link:</i>"
+            "Drop any public video link from Facebook, Instagram, TikTok, or YouTube to download instantly in Full HD!\n\n"
+            "🌐 <b>Platforms Supported:</b>\n"
+            "• <b>Facebook</b> (Reels, Watch, Long Videos)\n"
+            "• <b>Instagram</b> (Reels, Posts & Stories)\n"
+            "• <b>TikTok</b> (Watermark-free Full HD)\n"
+            "• <b>YouTube</b> (Shorts & Standard Videos)\n"
+            "• <b>X/Twitter, Pinterest, Threads</b> & 1000+ more.\n\n"
+            "👇 <i>Use the dashboard below or click <b>[ ☰ Menu ]</b>:</i>"
         ),
-        "btn_profile": "👤 My Profile", "btn_stats": "📊 Live Statistics", "btn_guide": "ℹ️ User Guide",
-        "btn_lang": "🌐 Language", "btn_feedback": "✍️ Feedback", "btn_admin": "💬 Admin",
-        "btn_back": "🔙 Back", "btn_cancel": "❌ Cancel", "btn_dl": "📥 Direct High-Speed HD Download Link",
-        "profile": "👤 <b>User Account Overview</b>\n\n• <b>Name:</b> {name}\n• <b>User ID:</b> <code>{user_id}</code>\n• <b>Language:</b> {lang}\n• <b>Access Tier:</b> <code>Unlimited Turbo Access</code>",
-        "stats": "📊 <b>Global Stats</b>\n\n👥 Users: <code>{users:,}</code>\n📥 Processed: <code>{downloads:,}</code>\n🟢 Status: <code>Online 24/7</code>",
-        "guide": "📌 <b>Quick Guide:</b>\n1. Send any video link.\n2. Under 50MB comes directly to chat.\n3. Large or long videos generate an instant HD direct download link.",
-        "choose_lang": "🌐 <b>Select your preferred language:</b>",
-        "lang_changed": "✅ <b>Language successfully updated!</b>",
-        "feedback_prompt": "✍️ <b>Send Feedback</b>\nType your message below for the admin:",
-        "feedback_ok": "✅ <b>Thank you!</b> Message sent to admin.",
-        "invalid": "🚨 <b>Hey boss! Please send a valid YouTube, Facebook, TikTok, or Instagram link! 😂</b>",
-        "delivered": "🎬 <b>Video Processed Successfully!</b>\n🔗 <b>Source:</b> <code>{source}</code>\n📥 Powered by @{admin}",
-        "large": "📦 <b>Large or Long Video File Detected!</b>\nTelegram restricts direct uploads over 50MB or long duration. Click below for your instant high-speed HD download link:",
-        "failed": "❌ <b>Extraction Failed, Boss!</b>\nThe video may be private, restricted, or region-locked. Try another public link!",
-        "cancelled": "❌ <b>Download Cancelled!</b>", "status": "DOWNLOADING IN PROGRESS...",
-        "quotes": [
-            "🎵 Equalizing stream frequencies... Bass boosted!",
-            "⚡ Pumping data packets at lightning speed...",
-            "🚀 Jet engine thrust activated for media rendering...",
-            "🥷 Cyber ninja traversing server clusters...",
-            "🔥 Blazing through the data matrix seamlessly..."
-        ]
-    },
-    "ms": {
-        "welcome": (
-            "👋 Selamat datang ke <b>Nahid Video Downloader Pro</b>, <b>{name}</b>!\n\n"
-            "⚡ Hantar pautan video awam dari YouTube, Facebook, Instagram, atau TikTok untuk dimuat turun dalam HD!\n\n"
-            "👇 <i>Gunakan menu di bawah atau hantar pautan:</i>"
+        "btn_profile": "👤 My Profile",
+        "btn_stats": "📊 Live Statistics",
+        "btn_guide": "ℹ️ User Guide",
+        "btn_lang": "🌐 Change Language",
+        "btn_feedback": "✍️ Feedback / Report",
+        "btn_admin": "💬 Contact Admin",
+        "btn_back": "🔙 Back to Menu",
+        "btn_master": "🛠️ Admin Panel",
+        "stats": (
+            "📊 <b>Nahid Video Downloader — Global Stats</b>\n\n"
+            "👥 <b>Total Active Users:</b> <code>{users:,}</code>\n"
+            "📥 <b>Total Media Processed:</b> <code>{downloads:,}</code>\n"
+            "🟢 <b>Server Status:</b> <code>Online 24/7 (Turbo)</code>\n"
+            "⚡ <b>Engine Health:</b> <code>Quad-Layer Active</code>"
         ),
-        "btn_profile": "👤 Profil Saya", "btn_stats": "📊 Statistik Langsung", "btn_guide": "ℹ️ Panduan Pengguna",
-        "btn_lang": "🌐 Bahasa", "btn_feedback": "✍️ Maklum Balas", "btn_admin": "💬 Admin",
-        "btn_back": "🔙 Kembali", "btn_cancel": "❌ Batal", "btn_dl": "📥 Pautan Muat Turun HD Pantas",
-        "profile": "👤 <b>Gambaran Keseluruhan Akaun</b>\n\n• <b>Nama:</b> {name}\n• <b>ID Pengguna:</b> <code>{user_id}</code>\n• <b>Bahasa:</b> {lang}\n• <b>Akses:</b> <code>Akses Turbo Tanpa Had</code>",
-        "stats": "📊 <b>Statistik Global</b>\n\n👥 Pengguna: <code>{users:,}</code>\n📥 Diproses: <code>{downloads:,}</code>\n🟢 Status: <code>Online 24/7</code>",
-        "guide": "📌 <b>Panduan Pantas:</b>\n1. Hantar sebarang pautan video.\n2. Bawah 50MB dihantar terus ke chat.\n3. Fail besar menjana pautan muat turun pantas.",
-        "choose_lang": "🌐 <b>Pilih bahasa pilihan anda:</b>",
-        "lang_changed": "✅ <b>Bahasa berjaya dikemas kini!</b>",
-        "feedback_prompt": "✍️ <b>Hantar Maklum Balas</b>\nTaip mesej anda di bawah untuk admin:",
-        "feedback_ok": "✅ <b>Terima kasih!</b> Mesej dihantar kepada admin.",
-        "invalid": "🚨 <b>Sila hantar pautan YouTube, Facebook, TikTok, atau Instagram yang sah! 😂</b>",
-        "delivered": "🎬 <b>Video Berjaya Diproses!</b>\n🔗 <b>Sumber:</b> <code>{source}</code>\n📥 Dikuasakan oleh @{admin}",
-        "large": "📦 <b>Fail Video Besar Dikesan!</b>\nKlik di bawah untuk pautan muat turun terus HD:",
-        "failed": "❌ <b>Gagal Mengekstrak!</b>\nVideo mungkin peribadi atau disekat.",
-        "cancelled": "❌ <b>Muat Turun Dibatalkan!</b>", "status": "SEDANG DIMUAT TURUN...",
-        "quotes": [
-            "🎵 Mengimbangkan frekuensi strim...",
-            "⚡ Mengepam paket data pada kelajuan kilat...",
-            "🚀 Enjin jet diaktifkan untuk rendering media...",
-            "🥷 Ninja siber melintasi kluster pelayan...",
-            "🔥 Menembusi matriks data dengan lancar..."
-        ]
+        "profile": (
+            "👤 <b>User Account Overview</b>\n\n"
+            "• <b>Name:</b> {name}\n"
+            "• <b>User ID:</b> <code>{user_id}</code>\n"
+            "• <b>Active Language:</b> 🇬🇧 Global English\n"
+            "• <b>Access Tier:</b> <code>Unlimited Turbo Access</code>"
+        ),
+        "guide": (
+            "📌 <b>Quick User Manual:</b>\n\n"
+            "1. Copy any video URL from Facebook, Instagram, TikTok, or YouTube.\n"
+            "2. Paste it directly into this chat.\n"
+            "3. Videos under <b>50 MB</b> will be delivered in chat.\n"
+            "4. Large videos (>50 MB up to 500 MB) generate a high-speed direct download link."
+        ),
+        "lang_select": "🌐 <b>Select Your Preferred Language:</b>",
+        "lang_changed": "✅ <b>Language successfully changed to English! 🇬🇧</b>",
+        "feedback_prompt": "✍️ <b>Send Feedback & Suggestions</b>\nType your message below. It will be sent directly to the admin:",
+        "feedback_success": "✅ <b>Thank you!</b> Your message has been forwarded directly to the admin.",
+        "nonsense_warn": "🚨 <b>Hey! This isn't a chatroom for nonsense! 😂</b>\nPlease send a valid <b>Facebook, TikTok, Instagram, or YouTube</b> link!",
+        "delivered": "🎬 <b>Video Processed Successfully!</b>\n📥 Powered by @{admin}",
+        "large_file": "📦 <b>Large Video File Detected! (> 50 MB)</b>\nTelegram restricts direct bot uploads. Click below to download in original Full HD directly:",
+        "btn_dl": "📥 Direct High-Speed Download (Full HD)",
+        "failed": "❌ <b>Extraction Failed!</b> Video may be private, age-restricted, or removed by the platform. Please verify the URL!",
+        "err": "⚠️ <b>Error processing video.</b> Please verify your URL and try again."
     },
     "bn": {
         "welcome": (
-            "স্বাগতম <b>Nahid Video Downloader Pro</b>-তে, <b>{name}</b>! 🚀\n\n"
-            "⚡ YouTube, Facebook, Instagram বা TikTok-এর যেকোনো পাবলিক ভিডিওর লিংক পাঠান, আমি এইচডি কোয়ালিটিতে নামিয়ে দেব।\n\n"
-            "👇 নিচের মেনু ব্যবহার করুন বা লিংক পেস্ট করুন।"
+            "স্বাগতম <b>Nahid Video Downloader Pro</b>-তে, <b>{name}</b>! 🚀🤖\n\n"
+            "⚡ <b>বিশ্বমানের অল-ইন-ওয়ান ভিডিও ডাউনলোডার</b>\n"
+            "Facebook, Instagram, TikTok বা YouTube-এর যেকোনো পাবলিক ভিডিওর লিংক পাঠিয়ে দিন—কয়েক সেকেন্ডেই ফুল এইচডি ভিডিও হাজির হবে!\n\n"
+            "🌐 <b>সাপোর্টেড:</b> Facebook, Instagram Reels, TikTok (ওয়াটারমার্ক ছাড়া), YouTube Shorts, Twitter, Pinterest ও ১০০০+ সাইট।\n\n"
+            "👇 <i>নিচের ড্যাশবোর্ড বা <b>[ ☰ Menu ]</b> বাটন ব্যবহার করুন:</i>"
         ),
-        "btn_profile": "👤 আমার প্রোফাইল", "btn_stats": "📊 লাইভ পরিসংখ্যান", "btn_guide": "ℹ️ ব্যবহারবিধি",
-        "btn_lang": "🌐 ভাষা", "btn_feedback": "✍️ মতামত", "btn_admin": "💬 অ্যাডমিন",
-        "btn_back": "🔙 ফিরে যান", "btn_cancel": "❌ বাতিল", "btn_dl": "📥 সরাসরি এইচডি ডাউনলোড লিংক",
-        "profile": "👤 <b>ব্যবহারকারী অ্যাকাউন্ট বিবরণী</b>\n\n• <b>নাম:</b> {name}\n• <b>ইউজার আইডি:</b> <code>{user_id}</code>\n• <b>ভাষা:</b> {lang}\n• <b>অ্যাক্সেস টায়ার:</b> <code>আনলিমিটেড টার্বো অ্যাক্সেস</code>",
-        "stats": "📊 <b>লাইভ পরিসংখ্যান</b>\n\n👥 ব্যবহারকারী: <code>{users:,}</code>\n📥 ডাউনলোড: <code>{downloads:,}</code>\n🟢 সার্ভার: <code>Online 24/7</code>",
-        "guide": "📌 <b>ব্যবহারবিধি</b>\n১. যেকোনো ভিডিওর লিংক দিন।\n২. ৫০MB-এর কম হলে চ্যাটেই পাবেন।\n৩. বড় হলে ডাইরেক্ট ডাউনলোড বাটন আসবে।",
-        "choose_lang": "🌐 <b>আপনার পছন্দের ভাষা সিলেক্ট করুন:</b>",
-        "lang_changed": "✅ <b>ভাষা সফলভাবে পরিবর্তন হয়েছে!</b>",
-        "feedback_prompt": "✍️ <b>মতামত লিখুন</b>\nআপনার মেসেজ সরাসরি অ্যাডমিনের কাছে যাবে:",
-        "feedback_ok": "✅ <b>ধন্যবাদ!</b> অ্যাডমিনের কাছে পাঠানো হয়েছে।",
-        "invalid": "🚨 <b>আরে বস, সঠিক ফেসবুক, ইনস্টাগ্রাম, ইউটিউব বা টিকটকের লিংক পাঠান! 😂</b>",
-        "delivered": "🎬 <b>ভিডিও সফলভাবে হাজির!</b>\n🔗 <b>সোর্স:</b> <code>{source}</code>\n📥 Powered by @{admin}",
-        "large": "📦 <b>বড় বা দীর্ঘ ভিডিও ফাইল!</b>\nটেলিগ্রামের লিমিটের বাইরে হওয়ায় নিচের বাটনে ক্লিক করে সরাসরি এইচডি ফাইল ডাউনলোড করে নিন:",
-        "failed": "❌ <b>ভিডিও আনা যায়নি বস!</b>\nভিডিওটি প্রাইভেট বা রেস্ট্রিক্টেড হতে পারে। সঠিক পাবলিক লিংক দিয়ে আবার চেষ্টা করুন!",
-        "cancelled": "❌ <b>ডাউনলোড বাতিল করা হয়েছে!</b>", "status": "DOWNLOADING IN PROGRESS...",
-        "quotes": [
-            "🎵 Equalizing stream frequencies... Bass boosted!",
-            "⚡ Pumping data packets at lightning speed...",
-            "🚀 Jet engine thrust activated for media rendering...",
-            "🥷 Cyber ninja traversing server clusters...",
-            "🔥 Blazing through the data matrix seamlessly..."
-        ]
+        "btn_profile": "👤 আমার প্রোফাইল",
+        "btn_stats": "📊 লাইভ পরিসংখ্যান",
+        "btn_guide": "ℹ️ ব্যবহারবিধি",
+        "btn_lang": "🌐 ভাষা পরিবর্তন",
+        "btn_feedback": "✍️ মতামত / সমস্যা",
+        "btn_admin": "💬 অ্যাডমিন যোগাযোগ",
+        "btn_back": "🔙 ফিরে যান",
+        "btn_master": "🛠️ অ্যাডমিন প্যানেল",
+        "stats": (
+            "📊 <b>লাইভ পরিসংখ্যান</b>\n\n"
+            "👥 <b>মোট ব্যবহারকারী:</b> <code>{users:,} জন</code>\n"
+            "📥 <b>মোট ডাউনলোড:</b> <code>{downloads:,} টি</code>\n"
+            "🟢 <b>সার্ভার:</b> <code>Online 24/7 (সুপারফাস্ট)</code>"
+        ),
+        "profile": (
+            "👤 <b>ইউজার প্রোফাইল</b>\n\n"
+            "• <b>নাম:</b> {name}\n"
+            "• <b>আইডি:</b> <code>{user_id}</code>\n"
+            "• <b>ভাষা:</b> 🇧🇩 বাংলা\n"
+            "• <b>অ্যাক্সেস:</b> <code>আনলিমিটেড ফ্রি</code>"
+        ),
+        "guide": (
+            "📌 <b>সহজ ব্যবহারবিধি:</b>\n\n"
+            "১. FB, Insta, TikTok বা YouTube-এর যেকোনো ভিডিওর লিংক কপি করুন।\n"
+            "২. সরাসরি চ্যাটে পাঠিয়ে দিন।\n"
+            "৩. ৫০MB-এর ভেতরের ভিডিও সরাসরি চ্যাটে পাবেন।\n"
+            "৪. ৫০MB-এর বড় ভিডিওর জন্য হাই-স্পিড ডাইরেক্ট ডাউনলোড লিংক পাবেন।"
+        ),
+        "lang_select": "🌐 <b>আপনার পছন্দের ভাষা বেছে নিন:</b>",
+        "lang_changed": "✅ <b>ভাষা সফলভাবে বাংলায় পরিবর্তন করা হয়েছে! 🇧🇩</b>",
+        "feedback_prompt": "✍️ <b>মতামত বা সমস্যার বিবরণ দিন</b>\nআপনার মেসেজটি নিচে লিখে পাঠান। এটি সরাসরি অ্যাডমিনের কাছে চলে যাবে:",
+        "feedback_success": "✅ <b>ধন্যবাদ!</b> আপনার মতামতটি সফলভাবে অ্যাডমিনের কাছে পাঠানো হয়েছে।",
+        "nonsense_warn": "🚨 <b>আরে ভাই! এটা আড্ডাবাজির জায়গা না! 😂</b>\nকাজের মতো <b>ফেসবুক, টিকটক, ইনস্টাগ্রাম বা ইউটিউব</b> লিংক পাঠান!",
+        "delivered": "🎬 <b>ভিডিও সফলভাবে হাজির!</b>\n📥 Powered by @{admin}",
+        "large_file": "📦 <b>ভিডিওর সাইজ বিশাল! (> ৫০ MB)</b>\nটেলিগ্রাম চ্যাটে ৫০MB-এর বড় ফাইল পাঠানো নিষেধ। নিচের বাটনে চাপ দিয়ে সরাসরি হাই-স্পিডে নামিয়ে নিন:",
+        "btn_dl": "📥 সরাসরি ফুল এইচডি ডাউনলোড করুন",
+        "failed": "❌ <b>ভিডিও নামানো গেল না!</b> ভিডিওটি প্রাইভেট করা, ফ্রেন্ডস-অনলি বা লিংকটি ভুল। সঠিক পাবলিক লিংক দিন!",
+        "err": "⚠️ <b>সার্ভারে ত্রুটি হয়েছে।</b> লিংকটি যাচাই করে আবার চেষ্টা করুন।"
+    },
+    "ms": {
+        "welcome": (
+            "Selamat datang ke <b>Nahid Video Downloader Pro</b>, <b>{name}</b>! 🚀🤖\n\n"
+            "⚡ <b>Pemuat Turun Media Global Terpantas</b>\n"
+            "Hantarkan sebarang pautan video dari Facebook, Instagram, TikTok, atau YouTube untuk muat turun terus dalam Full HD!\n\n"
+            "🌐 <b>Disokong:</b> Facebook, Instagram, TikTok, YouTube Shorts, X/Twitter & 1000+ laman web.\n\n"
+            "👇 <i>Gunakan menu di bawah atau klik <b>[ ☰ Menu ]</b>:</i>"
+        ),
+        "btn_profile": "👤 Profil Saya",
+        "btn_stats": "📊 Statistik Langsung",
+        "btn_guide": "ℹ️ Cara Penggunaan",
+        "btn_lang": "🌐 Tukar Bahasa",
+        "btn_feedback": "✍️ Maklum Balas",
+        "btn_admin": "💬 Hubungi Admin",
+        "btn_back": "🔙 Kembali",
+        "btn_master": "🛠️ Panel Admin",
+        "stats": (
+            "📊 <b>Statistik Langsung</b>\n\n"
+            "👥 <b>Pengguna:</b> <code>{users:,}</code>\n"
+            "📥 <b>Dimuat Turun:</b> <code>{downloads:,}</code>\n"
+            "🟢 <b>Status:</b> <code>Dalam Talian 24/7</code>"
+        ),
+        "profile": (
+            "👤 <b>Profil Pengguna</b>\n\n"
+            "• <b>Nama:</b> {name}\n"
+            "• <b>ID Telegram:</b> <code>{user_id}</code>\n"
+            "• <b>Bahasa:</b> 🇲🇾 Bahasa Melayu\n"
+            "• <b>Akses:</b> <code>Akses Tanpa Had</code>"
+        ),
+        "guide": (
+            "📌 <b>Panduan Pengguna:</b>\n\n"
+            "1. Salin pautan video dari FB, Insta, TikTok, atau YouTube.\n"
+            "2. Hantar terus ke sembang ini.\n"
+            "3. Fail <50 MB dihantar terus ke sembang.\n"
+            "4. Fail >50 MB menjana butang muat turun pantas terus."
+        ),
+        "lang_select": "🌐 <b>Pilih Bahasa Pilihan Anda:</b>",
+        "lang_changed": "✅ <b>Bahasa berjaya ditukar kepada Bahasa Melayu! 🇲🇾</b>",
+        "feedback_prompt": "✍️ <b>Hantar Maklum Balas</b>\nTaipkan mesej anda di bawah untuk dihantar terus kepada admin:",
+        "feedback_success": "✅ <b>Terima kasih!</b> Maklum balas anda telah dihantar kepada admin.",
+        "nonsense_warn": "🚨 <b>Hei! Ini bukan tempat borak kosong! 😂</b>\nSila hantarkan pautan <b>Facebook, TikTok, Instagram atau YouTube</b> yang sah!",
+        "delivered": "🎬 <b>Video Berjaya Dihantar!</b>\n📥 Dikuasakan oleh @{admin}",
+        "large_file": "📦 <b>Fail Video Besar! (> 50 MB)</b>\nTelegram mengehadkan muat naik bot. Klik butang di bawah untuk muat turun kualiti penuh terus:",
+        "btn_dl": "📥 Muat Turun Kualiti Penuh",
+        "failed": "❌ <b>Gagal Memuat Turun!</b> Video mungkin ditetapkan sebagai Privasi atau telah dipadamkan.",
+        "err": "⚠️ <b>Ralat pemprosesan berlaku.</b> Sila sahkan pautan anda dan cuba lagi."
     }
 }
 
 # ---------------------------------------------------------------------------
-# 3. Persistent Database Handler
+# 3. Persistent Database
 # ---------------------------------------------------------------------------
-STATS_FILE = "stats.json"
-
 def load_db():
     if os.path.exists(STATS_FILE):
         try:
@@ -197,237 +231,209 @@ def save_db():
 
 DB = load_db()
 
-def get_lang(uid: int) -> str:
-    return DB["user_langs"].get(str(uid), "en")
+def get_user_lang(user_id: int) -> str:
+    return DB["user_langs"].get(str(user_id), "en")
 
-def tr(uid: int, key: str) -> str:
-    lang = get_lang(uid)
-    return L10N.get(lang, L10N["en"]).get(key) or L10N["en"].get(key, "")
+def set_user_lang(user_id: int, lang: str):
+    DB["user_langs"][str(user_id)] = lang
+    save_db()
+
+def tr(user_id: int, key: str) -> str:
+    lang = get_user_lang(user_id)
+    return STRINGS.get(lang, STRINGS["en"]).get(key, STRINGS["en"].get(key, ""))
 
 # ---------------------------------------------------------------------------
-# 4. Render / Bot-Hosting 24/7 Keep-Alive HTTP Daemon
+# 4. Render 24/7 Keep-Alive Server
 # ---------------------------------------------------------------------------
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "text/plain")
         self.end_headers()
-        self.wfile.write(b"Nahid Video Downloader Pro - 24/7 Engine Active")
+        self.wfile.write(b"Nahid Video Downloader Pro - 24/7 Active")
+
     def log_message(self, format, *args):
         return
 
 def run_http_server():
     port = int(os.environ.get("PORT", 8080))
-    HTTPServer(("0.0.0.0", port), HealthCheckHandler).serve_forever()
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
 
 # ---------------------------------------------------------------------------
-# 5. URL Helpers & Downloader Engines
+# 5. Quad-Layer Facebook & Universal Media Engines
 # ---------------------------------------------------------------------------
-def is_youtube(url: str) -> bool:
-    return "youtube.com" in url or "youtu.be" in url
+def clean_facebook_url(url: str) -> str:
+    """Unwraps Facebook redirects and cleans tracking parameters."""
+    clean = url.split("?")[0].strip()
+    if any(k in url for k in ["facebook.com/share", "fb.watch", "facebook.com/reel"]):
+        try:
+            r = requests.get(
+                url, 
+                headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15"}, 
+                allow_redirects=True, 
+                timeout=8
+            )
+            resolved = r.url.split("?")[0]
+            if "facebook.com" in resolved:
+                return resolved
+        except Exception:
+            pass
+    return clean if clean.startswith("http") else url
 
-def extract_youtube_id(url: str):
-    m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([\w-]{11})", url)
-    return m.group(1) if m else None
-
-def sanitize_youtube_url(url: str) -> str:
-    vid = extract_youtube_id(url)
-    return f"https://www.youtube.com/watch?v={vid}" if vid else url
-
-def clean_social_url(url: str) -> str:
-    return url.split("?")[0].strip()
-
-def identify_source_name(url: str) -> str:
-    if "youtube.com" in url or "youtu.be" in url:
-        return "YouTube"
-    elif "facebook.com" in url or "fb.watch" in url:
-        return "Facebook"
-    elif "instagram.com" in url:
-        return "Instagram"
-    elif "tiktok.com" in url:
-        return "TikTok"
-    return "Global CDN"
-
-def rapidapi_youtube_links(url: str) -> list:
-    vid = extract_youtube_id(url)
-    if not (RAPIDAPI_KEY and vid):
-        return []
+def scrape_facebook_layer1(url: str) -> str:
+    """Layer 1: FDown Gateway Scraper (Bypasses Cloud IP bans)."""
     try:
-        r = requests.get(
-            f"https://{RAPIDAPI_HOST}/v2/video/details",
-            params={"videoId": vid},
-            headers={"x-rapidapi-key": RAPIDAPI_KEY, "x-rapidapi-host": RAPIDAPI_HOST},
-            timeout=25,
-        )
-        if r.status_code == 200:
-            items = (r.json().get("videos") or {}).get("items") or []
-            items = [i for i in items if i.get("url") and i.get("hasAudio", True)]
-            return [i["url"] for i in items]
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+            "Referer": "https://fdown.net/",
+            "Origin": "https://fdown.net",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        res = requests.post("https://fdown.net/download.php", data={"URLz": url}, headers=headers, timeout=12)
+        if res.status_code == 200:
+            html = res.text
+            hd = re.search(r'id=["\']hdlink["\'][^>]*href=["\']([^"\']+)["\']', html)
+            if hd:
+                return hd.group(1).replace("&amp;", "&")
+            sd = re.search(r'id=["\']sdlink["\'][^>]*href=["\']([^"\']+)["\']', html)
+            if sd:
+                return sd.group(1).replace("&amp;", "&")
     except Exception as e:
-        logger.warning(f"RapidAPI YT Error: {e}")
-    return []
-
-def generic_api_link(url: str):
-    if not (RAPIDAPI_KEY and GENERIC_API_HOST):
-        return None
-    try:
-        endpoint = f"https://{GENERIC_API_HOST}/"
-        headers = {"x-rapidapi-key": RAPIDAPI_KEY, "x-rapidapi-host": GENERIC_API_HOST, "Content-Type": "application/json"}
-        r = requests.post(endpoint, json={"url": url}, headers=headers, timeout=15)
-        if r.status_code != 200:
-            r = requests.get(endpoint, params={"url": url}, headers=headers, timeout=15)
-        if r.status_code == 200:
-            data = r.json()
-            return data.get("download_url") or data.get("url") or data.get("video")
-    except Exception as e:
-        logger.warning(f"Generic API Error: {e}")
+        logger.warning(f"Facebook Layer 1 notice: {e}")
     return None
 
-def tikwm_link(url: str):
+def scrape_facebook_layer2(url: str) -> str:
+    """Layer 2: Direct Mobile Native Stream Regex."""
     try:
-        res = requests.get("https://tikwm.com/api/", params={"url": url}, timeout=10).json()
+        headers = {
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        }
+        res = requests.get(url, headers=headers, allow_redirects=True, timeout=10)
+        html = res.text
+        patterns = [
+            r'"browser_native_hd_url":"(https:[^"]+)"',
+            r'"browser_native_sd_url":"(https:[^"]+)"',
+            r'"playable_url_quality_hd":"(https:[^"]+)"',
+            r'"playable_url":"(https:[^"]+)"',
+            r'hd_src:"([^"]+)"',
+            r'sd_src:"([^"]+)"'
+        ]
+        for p in patterns:
+            m = re.search(p, html)
+            if m:
+                raw = m.group(1).encode('utf-8').decode('unicode-escape').replace('\\/', '/').replace('&amp;', '&')
+                if raw.startswith("http"):
+                    return raw
+    except Exception as e:
+        logger.warning(f"Facebook Layer 2 notice: {e}")
+    return None
+
+def download_stream_to_file(stream_url: str, save_path: str) -> bool:
+    """Downloads an extracted direct stream MP4 link to disk."""
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        with requests.get(stream_url, headers=headers, stream=True, timeout=35) as r:
+            r.raise_for_status()
+            with open(save_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+        return os.path.exists(save_path) and os.path.getsize(save_path) > 1000
+    except Exception as e:
+        logger.warning(f"Stream download error: {e}")
+        return False
+
+def download_tiktok_tikwm(url: str, save_path: str) -> bool:
+    try:
+        res = requests.get(f"https://tikwm.com/api/?url={url}", timeout=10).json()
         if res.get("code") == 0:
-            return res["data"]["play"]
+            v_url = res["data"]["play"]
+            return download_stream_to_file(v_url, save_path)
     except Exception:
         pass
-    return None
+    return False
 
-class DownloadCancelledException(Exception):
-    pass
-
-def download_stream_with_progress(stream_url: str, save_path: str, job_id: str) -> str:
-    try:
-        with requests.get(stream_url, headers={"User-Agent": UA}, stream=True, timeout=35) as r:
-            r.raise_for_status()
-            total_size = int(r.headers.get("content-length", 0))
-            if total_size > MAX_UPLOAD_LIMIT:
-                return "big"
-            downloaded = 0
-            start_time = time.time()
-            with open(save_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=1024 * 512):
-                    if ACTIVE_CANCELS.get(job_id):
-                        return "fail"
-                    if not chunk:
-                        continue
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if downloaded > MAX_UPLOAD_LIMIT:
-                        return "big"
-                    elapsed = time.time() - start_time
-                    speed = downloaded / elapsed if elapsed > 0 else 0
-                    eta = (total_size - downloaded) / speed if speed > 0 and total_size > downloaded else 0
-                    JOB_PROGRESS[job_id] = {"downloaded": downloaded, "total": total_size, "speed": speed, "eta": eta}
-        return "ok" if os.path.exists(save_path) and os.path.getsize(save_path) > 1000 else "fail"
-    except Exception:
-        return "fail"
-
-def download_with_ytdlp(url: str, output_path: str, job_id: str):
-    def hook(d):
-        if ACTIVE_CANCELS.get(job_id):
-            raise DownloadCancelledException("Cancelled")
-        if d["status"] == "downloading":
-            JOB_PROGRESS[job_id] = {
-                "downloaded": d.get("downloaded_bytes") or 0,
-                "total": d.get("total_bytes") or d.get("total_bytes_estimate") or 0,
-                "speed": d.get("speed") or 0,
-                "eta": d.get("eta") or 0,
-            }
-
-    opts = {
-        "format": "best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
-        "outtmpl": output_path,
-        "merge_output_format": "mp4",
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
-        "socket_timeout": 35,
-        "progress_hooks": [hook],
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9",
+def download_universal_ytdlp(url: str, output_path: str):
+    """Universal yt-dlp Engine configured for merged single-stream formats."""
+    ydl_opts = {
+        'format': 'b[ext=mp4]/bestvideo[height<=720]+bestaudio/best[height<=720]/best',
+        'outtmpl': output_path,
+        'merge_output_format': 'mp4',
+        'quiet': True,
+        'no_warnings': True,
+        'noplaylist': True,
+        'socket_timeout': 30,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
         },
-        "extractor_args": {"youtube": {"player_client": ["ios", "android", "mweb"]}},
+        'extractor_args': {
+            'youtube': {'player_client': ['android', 'ios', 'web']}
+        }
     }
-    if COOKIES_FILE and os.path.exists(COOKIES_FILE):
-        opts["cookiefile"] = COOKIES_FILE
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        duration = info.get("duration", 0) or 0
-        if duration > 1800:
-            raise Exception("DURATION_TOO_LONG_FOR_TELEGRAM")
-        ydl.download([url])
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        return ydl.sanitize_info(info)
 
 def fetch_direct_stream_url(url: str):
-    opts = {
-        "format": "best[ext=mp4]/best", "quiet": True, "no_warnings": True, "noplaylist": True,
-        "extractor_args": {"youtube": {"player_client": ["ios", "android", "mweb"]}},
-    }
-    if COOKIES_FILE and os.path.exists(COOKIES_FILE):
-        opts["cookiefile"] = COOKIES_FILE
-    with yt_dlp.YoutubeDL(opts) as ydl:
+    ydl_opts = {'format': 'best', 'quiet': True, 'no_warnings': True, 'noplaylist': True}
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
-        return info.get("url") or (info.get("requested_formats") and info["requested_formats"][0].get("url"))
+        return info.get('url') or (info.get('requested_formats') and info['requested_formats'][0].get('url'))
 
 # ---------------------------------------------------------------------------
-# 6. Professional Equalizer & Live Animated Progress Layout Builder
+# 6. Futuristic Sound Wave Equalizer (উঁচু-নিচু লাইভ অ্যানিমেশন)
 # ---------------------------------------------------------------------------
-def format_live_progress_text(uid: int, downloaded, total, speed, eta, tick_count: int) -> str:
-    pct = min(99.9, (downloaded / total * 100)) if total > 0 else 0.0
-    filled = max(0, min(12, int(pct // 8.33)))
-    bar = "█" * filled + "░" * (12 - filled)
-    
-    dl_mb = downloaded / (1024 * 1024)
-    tot_mb = total / (1024 * 1024) if total > 0 else 0.0
-    spd_mb = speed / (1024 * 1024) if speed > 0 else 0.0
-    
-    # Dynamic Bouncing Music Equalizer Bars (Up & Down Wave effect)
-    eq_presets = [
-        "📊 ▂▃▄▅▆▇█▇▆▅▄▃▂ 📊",
-        "📊 ▇▆▅▄▃▂  ▂▃▄▅▆▇ 📊",
-        "📊 ▃▄▅▆▇█▇▆▅▄▃▂   📊",
-        "📊 █▇▆▅▄▃▂   ▂▃▄▅▆ 📊"
-    ]
-    eq_wave = eq_presets[tick_count % len(eq_presets)]
-    
+EQUALIZER_WAVES = [
+    " ▂▃▅▆▇█▇▆▅▃▂ ",
+    "▃▅▆▇██▇▆▅▃▂  ",
+    "▆▇██▇▆▅▄▃▂ ▂▃",
+    "▇██▇▆▅▃▂ ▂▃▅▆",
+    "▅▃▂ ▂▃▅▆▇██▇▆"
+]
+
+def format_equalizer_box(step_pct: int, frame_idx: int) -> str:
+    """Renders a dynamic equalizer wave with pulsing audio bars."""
+    filled = max(1, step_pct // 10)
+    progress_bar = "▰" * filled + "▱" * (10 - filled)
+    wave_bars = EQUALIZER_WAVES[frame_idx % len(EQUALIZER_WAVES)]
+
     return (
-        "🎛️ <b>NAHID MEDIA STUDIO — LIVE STREAM</b>\n"
+        "🎛️ <b>NAHID MEDIA ENGINE — TURBO STREAM</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"{eq_wave}\n"
-        f"📥 <b>Status:</b> <i>{tr(uid, 'status')}</i>\n"
-        f"📊 <b>Buffer:</b> <code>[{bar}] {pct:.1f}%</code>\n"
-        f"💾 <b>Downloaded:</b> <code>{dl_mb:.2f} MB / {tot_mb:.2f} MB</code>\n"
-        f"🚀 <b>Velocity:</b> <code>{spd_mb:.2f} MB/s</code> | ⏳ <b>ETA:</b> <code>{int(eta)}s</code>\n"
+        f"📡 <b>Status:</b> <i>Fetching High-Speed Media...</i>\n"
+        f"🎚️ <b>Equalizer:</b> <code>{wave_bars}</code>\n"
+        "🔊 <b>Frequency:</b> <code>ılı.lıllılı.ıllı.lıllılı</code>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "✨ <i>Streaming in high definition...</i>"
+        f"📊 <b>Buffer:</b> <code>[{progress_bar}] {step_pct}%</code>\n"
+        "⚡ <i>Engine: Multi-Tier CDN Cloud Gateway</i>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
-
-def build_cancel_keyboard(uid: int, job_id: str):
-    return InlineKeyboardMarkup([[InlineKeyboardButton(tr(uid, "btn_cancel"), callback_data=f"cancel_{job_id}")]])
 
 async def send_banner_safe(chat_id, caption, reply_markup=None, context=None):
     try:
         return await context.bot.send_photo(
-            chat_id=chat_id, photo=BOT_LOGO_URL, caption=caption,
-            reply_markup=reply_markup, parse_mode=ParseMode.HTML
+            chat_id=chat_id,
+            photo=BOT_LOGO_URL,
+            caption=caption,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
         )
     except Exception:
         return await context.bot.send_message(
-            chat_id=chat_id, text=caption, reply_markup=reply_markup, parse_mode=ParseMode.HTML
+            chat_id=chat_id,
+            text=caption,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
         )
 
-async def edit_any(msg, text, kb=None):
-    try:
-        if msg.photo:
-            await msg.edit_caption(caption=text, parse_mode=ParseMode.HTML, reply_markup=kb)
-        else:
-            await msg.edit_text(text=text, parse_mode=ParseMode.HTML, reply_markup=kb)
-        return True
-    except Exception:
-        return False
-
+# ---------------------------------------------------------------------------
+# 7. UI Keyboards
+# ---------------------------------------------------------------------------
 def build_main_menu(user_id: int):
-    return InlineKeyboardMarkup([
+    keyboard = [
         [
             InlineKeyboardButton(tr(user_id, "btn_profile"), callback_data="btn_profile"),
             InlineKeyboardButton(tr(user_id, "btn_stats"), callback_data="btn_stats")
@@ -440,27 +446,30 @@ def build_main_menu(user_id: int):
             InlineKeyboardButton(tr(user_id, "btn_feedback"), callback_data="btn_feedback"),
             InlineKeyboardButton(tr(user_id, "btn_admin"), url=f"https://t.me/{ADMIN_USERNAME}")
         ]
-    ])
+    ]
+    if user_id == ADMIN_ID:
+        keyboard.append([InlineKeyboardButton(tr(user_id, "btn_master"), callback_data="btn_admin")])
+    return InlineKeyboardMarkup(keyboard)
 
 def build_lang_menu():
-    codes = list(LANG_NAMES.keys())
-    rows = [
-        [InlineKeyboardButton(LANG_NAMES[c], callback_data=f"setlang_{c}")]
-        for c in codes
-    ]
-    return InlineKeyboardMarkup(rows)
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🇬🇧 English (Global Default)", callback_data="setlang_en")],
+        [InlineKeyboardButton("🇧🇩 বাংলা (Bengali)", callback_data="setlang_bn")],
+        [InlineKeyboardButton("🇲🇾 Bahasa Melayu (Malay)", callback_data="setlang_ms")],
+        [InlineKeyboardButton("🔙 Back to Menu", callback_data="btn_home")]
+    ])
 
 # ---------------------------------------------------------------------------
-# 7. Command Handlers
+# 8. Command Handlers
 # ---------------------------------------------------------------------------
 async def set_menu_commands(application):
     commands = [
-        BotCommand("start", "🚀 Start / Dashboard"),
-        BotCommand("lang", "🌐 Change Language"),
-        BotCommand("stats", "📊 Bot Statistics"),
-        BotCommand("profile", "👤 User Profile"),
-        BotCommand("feedback", "✍️ Send Feedback"),
-        BotCommand("admin", "💬 Admin Support")
+        BotCommand("start", "🚀 Start / Refresh Main Dashboard"),
+        BotCommand("lang", "🌐 Change Language / ভাষা / Bahasa"),
+        BotCommand("stats", "📊 View Global Bot Statistics"),
+        BotCommand("profile", "👤 View Personal Profile"),
+        BotCommand("feedback", "✍️ Send Feedback / Report Issue"),
+        BotCommand("admin", "💬 Contact Verified Admin")
     ]
     try:
         await application.bot.set_my_commands(commands)
@@ -473,81 +482,137 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db()
     context.user_data["feedback_mode"] = False
 
+    welcome_text = tr(user.id, "welcome").format(name=user.first_name)
     try:
         await update.message.delete()
     except Exception:
         pass
-    
-    await send_banner_safe(
-        update.effective_chat.id,
-        L10N["en"]["welcome"].format(name=user.first_name),
-        build_main_menu(user.id), context
-    )
+    await send_banner_safe(update.effective_chat.id, welcome_text, build_main_menu(user.id), context)
 
 async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(tr(update.effective_user.id, "choose_lang"), reply_markup=build_lang_menu(), parse_mode=ParseMode.HTML)
+    user = update.effective_user
+    context.user_data["feedback_mode"] = False
+    await update.message.reply_text(tr(user.id, "lang_select"), reply_markup=build_lang_menu(), parse_mode=ParseMode.HTML)
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    await update.message.reply_text(tr(uid, "stats").format(users=len(DB["unique_users"]), downloads=DB["total_downloads"]), parse_mode=ParseMode.HTML)
+    user = update.effective_user
+    context.user_data["feedback_mode"] = False
+    text = tr(user.id, "stats").format(users=len(DB["unique_users"]), downloads=DB["total_downloads"])
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
 async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    uid = user.id
-    name = f"{user.first_name} {user.last_name or ''}".strip()
-    lang_display = LANG_NAMES.get(get_lang(uid), "English")
-    text = tr(uid, "profile").format(name=name, user_id=uid, lang=lang_display)
-    
-    back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(tr(uid, "btn_back"), callback_data="btn_home")]])
-    await update.message.reply_text(text, reply_markup=back_kb, parse_mode=ParseMode.HTML)
+    context.user_data["feedback_mode"] = False
+    text = tr(user.id, "profile").format(name=f"{user.first_name} {user.last_name or ''}".strip(), user_id=user.id)
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
     context.user_data["feedback_mode"] = True
-    cancel_kb = InlineKeyboardMarkup([[InlineKeyboardButton(tr(update.effective_user.id, "btn_cancel"), callback_data="btn_home")]])
-    await update.message.reply_text(tr(update.effective_user.id, "feedback_prompt"), reply_markup=cancel_kb, parse_mode=ParseMode.HTML)
+    cancel_kb = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel", callback_data="btn_home")]])
+    await update.message.reply_text(tr(user.id, "feedback_prompt"), reply_markup=cancel_kb, parse_mode=ParseMode.HTML)
 
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    context.user_data["feedback_mode"] = False
+    kb = [[InlineKeyboardButton(tr(user.id, "btn_admin"), url=f"https://t.me/{ADMIN_USERNAME}")]]
+    await update.message.reply_text(f"👨‍💻 <b>Support:</b> @{ADMIN_USERNAME}", reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
+
+# ---------------------------------------------------------------------------
+# 9. Button Callback Dispatcher
+# ---------------------------------------------------------------------------
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
     data = query.data
-    try:
-        await query.answer()
-    except Exception:
-        pass
+    await query.answer()
 
-    if data.startswith("cancel_"):
-        ACTIVE_CANCELS[data.replace("cancel_", "")] = True
-        await edit_any(query.message, tr(user.id, "cancelled"))
-        return
+    # Legacy Button Resolver
+    legacy_map = {
+        "my_profile": "btn_profile", "help_guide": "btn_guide", "admin_panel": "btn_admin",
+        "back_home": "btn_home", "menu_home": "btn_home"
+    }
+    data = legacy_map.get(data, data)
+    back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(tr(user.id, "btn_back"), callback_data="btn_home")]])
 
     if data.startswith("setlang_"):
-        selected_lang = data.replace("setlang_", "")
-        DB["user_langs"][str(user.id)] = selected_lang
-        save_db()
-        text = f"{tr(user.id, 'lang_changed')}\n\n{tr(user.id, 'welcome').format(name=user.first_name)}"
-        await edit_any(query.message, text, build_main_menu(user.id))
+        new_lang = data.replace("setlang_", "")
+        set_user_lang(user.id, new_lang)
+        welcome_text = tr(user.id, "welcome").format(name=user.first_name)
+        banner_text = f"{tr(user.id, 'lang_changed')}\n\n{welcome_text}"
+        try:
+            await query.edit_message_caption(caption=banner_text, parse_mode=ParseMode.HTML, reply_markup=build_main_menu(user.id))
+        except Exception:
+            await query.edit_message_text(text=banner_text, parse_mode=ParseMode.HTML, reply_markup=build_main_menu(user.id))
         return
 
-    back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(tr(user.id, "btn_back"), callback_data="btn_home")]])
-    if data == "btn_lang":
-        await edit_any(query.message, tr(user.id, "choose_lang"), build_lang_menu())
-    elif data == "btn_feedback":
+    if data == "btn_feedback":
         context.user_data["feedback_mode"] = True
-        await edit_any(query.message, tr(user.id, "feedback_prompt"), back_kb)
+        cancel_kb = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel", callback_data="btn_home")]])
+        try:
+            await query.edit_message_caption(caption=tr(user.id, "feedback_prompt"), parse_mode=ParseMode.HTML, reply_markup=cancel_kb)
+        except Exception:
+            await query.edit_message_text(text=tr(user.id, "feedback_prompt"), parse_mode=ParseMode.HTML, reply_markup=cancel_kb)
+        return
+
+    if data == "btn_lang":
+        context.user_data["feedback_mode"] = False
+        try:
+            await query.edit_message_caption(caption=tr(user.id, "lang_select"), parse_mode=ParseMode.HTML, reply_markup=build_lang_menu())
+        except Exception:
+            await query.edit_message_text(text=tr(user.id, "lang_select"), parse_mode=ParseMode.HTML, reply_markup=build_lang_menu())
+
     elif data == "btn_stats":
-        await edit_any(query.message, tr(user.id, "stats").format(users=len(DB["unique_users"]), downloads=DB["total_downloads"]), back_kb)
-    elif data == "btn_guide":
-        await edit_any(query.message, tr(user.id, "guide"), back_kb)
+        context.user_data["feedback_mode"] = False
+        text = tr(user.id, "stats").format(users=len(DB["unique_users"]), downloads=DB["total_downloads"])
+        try:
+            await query.edit_message_caption(caption=text, parse_mode=ParseMode.HTML, reply_markup=back_kb)
+        except Exception:
+            await query.edit_message_text(text=text, parse_mode=ParseMode.HTML, reply_markup=back_kb)
+
     elif data == "btn_profile":
-        name = f"{user.first_name} {user.last_name or ''}".strip()
-        lang_display = LANG_NAMES.get(get_lang(user.id), "English")
-        prof_txt = tr(user.id, "profile").format(name=name, user_id=user.id, lang=lang_display)
-        await edit_any(query.message, prof_txt, back_kb)
+        context.user_data["feedback_mode"] = False
+        text = tr(user.id, "profile").format(name=f"{user.first_name} {user.last_name or ''}".strip(), user_id=user.id)
+        try:
+            await query.edit_message_caption(caption=text, parse_mode=ParseMode.HTML, reply_markup=back_kb)
+        except Exception:
+            await query.edit_message_text(text=text, parse_mode=ParseMode.HTML, reply_markup=back_kb)
+
+    elif data == "btn_guide":
+        context.user_data["feedback_mode"] = False
+        text = tr(user.id, "guide")
+        try:
+            await query.edit_message_caption(caption=text, parse_mode=ParseMode.HTML, reply_markup=back_kb)
+        except Exception:
+            await query.edit_message_text(text=text, parse_mode=ParseMode.HTML, reply_markup=back_kb)
+
+    elif data == "btn_admin":
+        context.user_data["feedback_mode"] = False
+        if user.id == ADMIN_ID:
+            stats_text = (
+                f"🛠️ <b>Master Developer Control Panel</b>\n\n"
+                f"• <b>Total Users:</b> <code>{len(DB['unique_users'])}</code>\n"
+                f"• <b>Total Downloads:</b> <code>{DB['total_downloads']}</code>\n"
+                f"• <b>RapidAPI Gateway:</b> <code>{'Active' if RAPIDAPI_KEY else 'Disabled'}</code>\n"
+                f"• <b>Server Status:</b> <code>Optimal (24/7 Turbo)</code>"
+            )
+            try:
+                await query.edit_message_caption(caption=stats_text, parse_mode=ParseMode.HTML, reply_markup=back_kb)
+            except Exception:
+                await query.edit_message_text(text=stats_text, parse_mode=ParseMode.HTML, reply_markup=back_kb)
+        else:
+            await query.answer("Access Restricted: Administrator Only!", show_alert=True)
+
     elif data == "btn_home":
-        await edit_any(query.message, L10N["en"]["welcome"].format(name=user.first_name), build_main_menu(user.id))
+        context.user_data["feedback_mode"] = False
+        welcome_text = tr(user.id, "welcome").format(name=user.first_name)
+        try:
+            await query.edit_message_caption(caption=welcome_text, parse_mode=ParseMode.HTML, reply_markup=build_main_menu(user.id))
+        except Exception:
+            await query.edit_message_text(text=welcome_text, parse_mode=ParseMode.HTML, reply_markup=build_main_menu(user.id))
 
 # ---------------------------------------------------------------------------
-# 8. Core Message Handler & Downloader Pipeline with Live Animation
+# 10. Message Handler (Feedback & Quad-Layer Video Engine)
 # ---------------------------------------------------------------------------
 async def handle_incoming_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
@@ -557,187 +622,236 @@ async def handle_incoming_message(update: Update, context: ContextTypes.DEFAULT_
     raw_text = message.text.strip()
     chat_id = update.effective_chat.id
     user = update.effective_user
+
     DB["unique_users"].add(user.id)
     save_db()
 
+    # User Feedback Routing (Direct to Admin 8815124111)
     if context.user_data.get("feedback_mode"):
         context.user_data["feedback_mode"] = False
-        admin_text = f"📬 <b>Feedback from {user.first_name}</b> (<code>{user.id}</code>):\n\n{raw_text}"
+        user_name = f"{user.first_name} {user.last_name or ''}".strip()
+        user_handle = f"@{user.username}" if user.username else "No Username"
+        admin_text = (
+            "📬 <b>New User Feedback Received!</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 <b>From:</b> {user_name}\n"
+            f"🔗 <b>Username:</b> {user_handle}\n"
+            f"🆔 <b>User ID:</b> <code>{user.id}</code>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"📝 <b>Message:</b>\n\n{raw_text}\n"
+            "━━━━━━━━━━━━━━━━━━━━"
+        )
         try:
             await context.bot.send_message(chat_id=ADMIN_ID, text=admin_text, parse_mode=ParseMode.HTML)
         except Exception:
             pass
-        await message.reply_text(tr(user.id, "feedback_ok"), reply_markup=build_main_menu(user.id), parse_mode=ParseMode.HTML)
+
+        await message.reply_text(tr(user.id, "feedback_success"), reply_markup=build_main_menu(user.id), parse_mode=ParseMode.HTML)
         return
 
-    urls = re.findall(r"(https?://\S+)", raw_text)
+    # Video Link Protocol
+    urls = re.findall(r'(https?://\S+)', raw_text)
+
+    # Non-link Auto-Delete & Funny Warning
     if not urls:
         try:
             await message.delete()
         except Exception:
             pass
-        warn_msg = await context.bot.send_message(chat_id=chat_id, text=tr(user.id, "invalid"), parse_mode=ParseMode.HTML)
-        async def del_warn():
+
+        warn_msg = await context.bot.send_message(chat_id=chat_id, text=tr(user.id, "nonsense_warn"), parse_mode=ParseMode.HTML)
+
+        async def delete_warning_later(msg_id: int):
             await asyncio.sleep(5)
             try:
-                await context.bot.delete_message(chat_id=chat_id, message_id=warn_msg.message_id)
+                await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
             except Exception:
                 pass
-        asyncio.create_task(del_warn())
+
+        asyncio.create_task(delete_warning_later(warn_msg.message_id))
         return
 
+    # Delete User's Link to keep chat pristine
     try:
         await message.delete()
     except Exception:
         pass
 
     target_url = urls[0]
-    source_name = identify_source_name(target_url)
-    job_id = uuid.uuid4().hex[:8]
-    ACTIVE_CANCELS[job_id] = False
-    JOB_PROGRESS[job_id] = {"downloaded": 0, "total": 0, "speed": 0, "eta": 0}
 
-    tick_counter = 0
-    initial_text = format_live_progress_text(user.id, 0, 0, 0, 0, tick_counter)
-    proc_msg = await send_banner_safe(chat_id=chat_id, caption=initial_text, reply_markup=build_cancel_keyboard(user.id, job_id), context=context)
+    # Initial Equalizer Banner
+    proc_msg = await send_banner_safe(chat_id=chat_id, caption=format_equalizer_box(20, 0), context=context)
 
+    job_id = uuid.uuid4().hex
     temp_dir = Path(f"/tmp/ytdl_{job_id}")
     output_template = str(temp_dir / "%(id)s.%(ext)s")
-    loop_active = True
 
-    async def progress_loop():
-        nonlocal tick_counter
-        while loop_active:
-            await asyncio.sleep(1.5)  # Smooth real-time update interval
-            if not loop_active or ACTIVE_CANCELS.get(job_id):
+    # Live Fluctuating Equalizer Wave Animation Task
+    anim_active = True
+    async def run_equalizer_animation():
+        stages = [(38, 1), (56, 2), (74, 3), (88, 4)]
+        for s, frame in stages:
+            await asyncio.sleep(1.7)
+            if not anim_active:
                 break
-            tick_counter += 1
-            p = JOB_PROGRESS.get(job_id, {})
-            card = format_live_progress_text(user.id, p.get("downloaded", 0), p.get("total", 0), p.get("speed", 0), p.get("eta", 0), tick_counter)
-            await edit_any(proc_msg, card, build_cancel_keyboard(user.id, job_id))
+            try:
+                new_box = format_equalizer_box(s, frame)
+                if proc_msg.photo:
+                    await proc_msg.edit_caption(caption=new_box, parse_mode=ParseMode.HTML)
+                else:
+                    await proc_msg.edit_text(text=new_box, parse_mode=ParseMode.HTML)
+            except Exception:
+                pass
 
-    prog_task = asyncio.create_task(progress_loop())
-    state = {"direct": None}
+    anim_task = asyncio.create_task(run_equalizer_animation())
 
     try:
         temp_dir.mkdir(parents=True, exist_ok=True)
         await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_VIDEO)
+
         loop = asyncio.get_running_loop()
         download_success = False
-        out_file = str(temp_dir / "video.mp4")
+        direct_stream_url = None
 
-        yt = is_youtube(target_url)
-        cleaned_url = sanitize_youtube_url(target_url) if yt else clean_social_url(target_url)
+        # -------------------------------------------------------------------
+        # 1. SPECIALIZED FACEBOOK EXTRACTION ENGINE (100% Guaranteed)
+        # -------------------------------------------------------------------
+        if "facebook.com" in target_url or "fb.watch" in target_url:
+            clean_fb = await loop.run_in_executor(None, clean_facebook_url, target_url)
 
-        async def grab(link) -> bool:
-            if not link or ACTIVE_CANCELS.get(job_id):
-                return False
-            res = await loop.run_in_executor(None, download_stream_with_progress, link, out_file, job_id)
-            if res == "big":
-                state["direct"] = state["direct"] or link
-            return res == "ok"
+            # Layer 1: FDown Gateway (Bypasses Meta IP Checkpoints)
+            stream_l1 = await loop.run_in_executor(None, scrape_facebook_layer1, clean_fb)
+            if stream_l1:
+                direct_stream_url = stream_l1
+                fb_file = str(temp_dir / "fb_video.mp4")
+                download_success = await loop.run_in_executor(None, download_stream_to_file, stream_l1, fb_file)
 
-        async def try_ytdlp() -> bool:
-            if ACTIVE_CANCELS.get(job_id):
-                return False
-            for f in glob.glob(f"{temp_dir}/*"):
+            # Layer 2: Direct Mobile Stream Regex
+            if not download_success:
+                stream_l2 = await loop.run_in_executor(None, scrape_facebook_layer2, clean_fb)
+                if stream_l2:
+                    direct_stream_url = stream_l2
+                    fb_file = str(temp_dir / "fb_video.mp4")
+                    download_success = await loop.run_in_executor(None, download_stream_to_file, stream_l2, fb_file)
+
+            # Layer 3: Optimized Single-Stream yt-dlp for Facebook
+            if not download_success:
                 try:
-                    os.remove(f)
-                except Exception:
-                    pass
+                    await loop.run_in_executor(None, download_universal_ytdlp, clean_fb, output_template)
+                    download_success = True
+                except Exception as e:
+                    logger.warning(f"FB yt-dlp error: {e}")
+
+        # -------------------------------------------------------------------
+        # 2. UNIVERSAL ENGINE (TikTok, Instagram, YouTube, X, Pinterest)
+        # -------------------------------------------------------------------
+        if not download_success:
             try:
-                await loop.run_in_executor(None, download_with_ytdlp, cleaned_url, output_template, job_id)
-                return True
-            except Exception as e:
-                logger.warning(f"yt-dlp fallback error: {e}")
-                if "DURATION_TOO_LONG_FOR_TELEGRAM" in str(e):
-                    state["direct"] = fetch_direct_stream_url(cleaned_url)
-                return False
+                await loop.run_in_executor(None, download_universal_ytdlp, target_url, output_template)
+                download_success = True
+            except Exception:
+                pass
 
-        # --- Ultra-Robust Multi-Layer Routing ---
-        if yt:
-            if RAPIDAPI_KEY:
-                for lk in rapidapi_youtube_links(cleaned_url)[:3]:
-                    if await grab(lk):
-                        download_success = True
-                        break
-            if not download_success and not state["direct"]:
-                download_success = await try_ytdlp()
-        elif "tiktok.com" in cleaned_url:
-            tk = tikwm_link(cleaned_url)
-            download_success = await grab(tk)
-            if not download_success:
-                download_success = await try_ytdlp()
-        else:
-            download_success = await try_ytdlp()
-            if not download_success:
-                g = generic_api_link(cleaned_url)
-                download_success = await grab(g)
+        # TikTok TikWM Fallback
+        if not download_success and ("tiktok.com" in target_url or "douyin.com" in target_url):
+            tiktok_file = str(temp_dir / "tiktok_video.mp4")
+            download_success = await loop.run_in_executor(None, download_tiktok_tikwm, target_url, tiktok_file)
 
-        loop_active = False
-        prog_task.cancel()
+        downloaded_files = glob.glob(f"{temp_dir}/*")
 
-        if ACTIVE_CANCELS.get(job_id):
-            return
+        anim_active = False
+        anim_task.cancel()
 
-        files = [f for f in glob.glob(f"{temp_dir}/*") if os.path.getsize(f) > 1000]
+        # Files <= 48 MB delivered in Telegram Chat with player streaming
+        if download_success and downloaded_files:
+            video_path = downloaded_files[0]
+            file_size = os.path.getsize(video_path)
 
-        # Deliver if under size limit (48MB)
-        if download_success and files:
-            video_path = files[0]
-            if os.path.getsize(video_path) <= MAX_UPLOAD_LIMIT:
+            if file_size <= MAX_UPLOAD_LIMIT:
                 DB["total_downloads"] += 1
                 save_db()
-                caption = tr(user.id, "delivered").format(source=source_name, admin=ADMIN_USERNAME)
-                try:
-                    with open(video_path, "rb") as vf:
-                        await context.bot.send_video(chat_id=chat_id, video=vf, caption=caption, supports_streaming=True, parse_mode=ParseMode.HTML)
-                except Exception:
-                    with open(video_path, "rb") as vf:
-                        await context.bot.send_document(chat_id=chat_id, document=vf, caption=caption, parse_mode=ParseMode.HTML)
+                with open(video_path, 'rb') as video_file:
+                    await context.bot.send_video(
+                        chat_id=chat_id,
+                        video=video_file,
+                        caption=tr(user.id, "delivered").format(admin=ADMIN_USERNAME),
+                        supports_streaming=True,
+                        read_timeout=300,
+                        write_timeout=300,
+                        parse_mode=ParseMode.HTML
+                    )
                 try:
                     await proc_msg.delete()
                 except Exception:
                     pass
                 return
 
-        # Large File / Direct HD Link Fallback
-        direct = state["direct"] or (await loop.run_in_executor(None, fetch_direct_stream_url, cleaned_url))
-        if direct:
+        # Large Files (>48 MB up to 500 MB): Deliver High-Speed Direct Download Link
+        if not direct_stream_url:
+            direct_stream_url = await loop.run_in_executor(None, fetch_direct_stream_url, target_url)
+
+        if direct_stream_url:
             DB["total_downloads"] += 1
             save_db()
-            kb = InlineKeyboardMarkup([[InlineKeyboardButton(tr(user.id, "btn_dl"), url=direct)]])
-            await edit_any(proc_msg, tr(user.id, "large"), kb)
+            kb = [[InlineKeyboardButton(tr(user.id, "btn_dl"), url=direct_stream_url)]]
+            large_caption = tr(user.id, "large_file")
+            try:
+                if proc_msg.photo:
+                    await proc_msg.edit_caption(caption=large_caption, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+                else:
+                    await proc_msg.edit_text(text=large_caption, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
+            except Exception:
+                await context.bot.send_message(chat_id=chat_id, text=large_caption, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(kb))
             return
 
-        # Failed State
-        await edit_any(proc_msg, tr(user.id, "failed"))
+        # Extraction Failed Notification
+        fail_text = tr(user.id, "failed")
+        try:
+            if proc_msg.photo:
+                await proc_msg.edit_caption(caption=fail_text, parse_mode=ParseMode.HTML)
+            else:
+                await proc_msg.edit_text(text=fail_text, parse_mode=ParseMode.HTML)
+        except Exception:
+            await context.bot.send_message(chat_id=chat_id, text=fail_text, parse_mode=ParseMode.HTML)
 
     except Exception as exc:
-        logger.error(f"Error: {exc}")
-        loop_active = False
-        prog_task.cancel()
-        if state.get("direct"):
-            kb = InlineKeyboardMarkup([[InlineKeyboardButton(tr(user.id, "btn_dl"), url=state["direct"])]])
-            await edit_any(proc_msg, tr(user.id, "large"), kb)
-        else:
-            await edit_any(proc_msg, tr(user.id, "failed"))
+        logger.error(f"Execution Error: {exc}", exc_info=True)
+        anim_active = False
+        anim_task.cancel()
+        err_msg = tr(user.id, "err")
+        try:
+            if proc_msg.photo:
+                await proc_msg.edit_caption(caption=err_msg, parse_mode=ParseMode.HTML)
+            else:
+                await proc_msg.edit_text(text=err_msg, parse_mode=ParseMode.HTML)
+        except Exception:
+            await context.bot.send_message(chat_id=chat_id, text=err_msg, parse_mode=ParseMode.HTML)
+
     finally:
-        loop_active = False
+        anim_active = False
+        if not anim_task.done():
+            anim_task.cancel()
         if temp_dir.exists():
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 # ---------------------------------------------------------------------------
-# 9. Main Bootstrap Engine
+# 11. Main Bootstrap Engine
 # ---------------------------------------------------------------------------
 def main():
     if not TOKEN:
-        logger.critical("BOT_TOKEN is missing!")
+        logger.critical("BOT_TOKEN is not configured!")
         return
 
+    # Start 24/7 Render Keep-Alive Port Server
     threading.Thread(target=run_http_server, daemon=True).start()
 
-    custom_request = HTTPXRequest(connect_timeout=60.0, read_timeout=300.0, write_timeout=300.0)
+    custom_request = HTTPXRequest(
+        connect_timeout=60.0,
+        read_timeout=300.0,
+        write_timeout=300.0,
+        pool_timeout=60.0
+    )
+
     application = ApplicationBuilder().token(TOKEN).request(custom_request).post_init(set_menu_commands).build()
 
     application.add_handler(CommandHandler("start", start_command))
@@ -745,11 +859,12 @@ def main():
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CommandHandler("profile", profile_command))
     application.add_handler(CommandHandler("feedback", feedback_command))
+    application.add_handler(CommandHandler("admin", admin_command))
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_incoming_message))
 
-    logger.info("Nahid Video Downloader Pro is 100% LIVE & Running with Professional Equalizer Live Animation!")
+    logger.info("Nahid Video Downloader Pro is 100% ONLINE and READY!")
     application.run_polling(drop_pending_updates=True)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
