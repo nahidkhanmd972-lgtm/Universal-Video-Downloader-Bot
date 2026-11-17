@@ -1,4 +1,5 @@
-import os
+
+    import os
 import re
 import json
 import glob
@@ -42,7 +43,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("NahidDownloaderPro")
 
-# Credentials & API Gateways
+# Credentials & APIs
 TOKEN = os.getenv("BOT_TOKEN")
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY") or os.getenv("X-RapidAPI-Key", "")
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST") or os.getenv("X-RapidAPI-Host", "all-in-one-media-downloader-api.p.rapidapi.com")
@@ -50,14 +51,14 @@ RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST") or os.getenv("X-RapidAPI-Host", "all-
 ADMIN_ID = 8815124111
 ADMIN_USERNAME = "NahidDevOfficial"
 BOT_LOGO_URL = "https://user55725.cn.imgto.link/public/20261113/fd75766042207998416adf8f-1000482026.avif"
-MAX_UPLOAD_LIMIT = 48 * 1024 * 1024  # 48 MB Safe Telegram Bot API limit
+MAX_UPLOAD_LIMIT = 48 * 1024 * 1024  # 48 MB Safe Telegram Bot API upload limit
 STATS_FILE = "stats.json"
 
 ACTIVE_CANCELS = {}
 JOB_PROGRESS = {}
 
 # ---------------------------------------------------------------------------
-# 2. Multi-Language System (English [Strict Default], Melayu, Bengali)
+# 2. Multi-Language Dictionary (English [Strict Default], Malay, Bengali)
 # ---------------------------------------------------------------------------
 STRINGS = {
     "en": {
@@ -86,7 +87,7 @@ STRINGS = {
             "👥 <b>Total Active Users:</b> <code>{users:,}</code>\n"
             "📥 <b>Total Media Processed:</b> <code>{downloads:,}</code>\n"
             "🟢 <b>Server Status:</b> <code>Online 24/7 (High-Speed Turbo)</code>\n"
-            "⚡ <b>Engine Health:</b> <code>Multi-Tier Active</code>"
+            "⚡ <b>Engine Health:</b> <code>Multi-API Fast Gateway Active</code>"
         ),
         "profile": (
             "👤 <b>User Account Overview</b>\n\n"
@@ -99,8 +100,8 @@ STRINGS = {
             "📌 <b>Quick User Manual:</b>\n\n"
             "1. Copy any video URL from YouTube, Facebook, Instagram, or TikTok.\n"
             "2. Paste it directly into this chat.\n"
-            "3. Media under <b>50 MB</b> will be delivered straight into your chat.\n"
-            "4. Large media over <b>50 MB</b> generates an instant direct download link."
+            "3. Media under <b>50 MB</b> is delivered straight to your chat.\n"
+            "4. Large media (> 50 MB) gets an instant high-speed direct download link."
         ),
         "lang_select": "🌐 <b>Select Your Preferred Language:</b>",
         "lang_changed": "✅ <b>Language successfully updated to English! 🇬🇧</b>",
@@ -109,8 +110,8 @@ STRINGS = {
         "nonsense_warn": "🚨 <b>Hey! This isn't a chatroom for nonsense! 😂</b>\nPlease send a valid <b>YouTube, Facebook, TikTok, or Instagram</b> link!",
         "delivered": "🎬 <b>Video Processed Successfully!</b>\n📥 Powered by @{admin}",
         "large_file": (
-            "📦 <b>Direct Download Link Ready!</b>\n\n"
-            "Telegram restricts direct bot file uploads over 50MB. Click below to download in original Full HD directly:"
+            "📦 <b>Direct HD Download Link Ready!</b>\n\n"
+            "Telegram limits in-chat uploads to 50MB. Click below to download the original Full HD video directly at maximum speed:"
         ),
         "btn_dl": "📥 Direct High-Speed Download (Full HD)",
         "failed": "❌ <b>Extraction Failed!</b> Video may be private, age-restricted, or removed by the platform. Please verify the URL!"
@@ -159,7 +160,7 @@ STRINGS = {
         "delivered": "🎬 <b>Video Berjaya Dihantar!</b>\n📥 Dikuasakan oleh @{admin}",
         "large_file": (
             "📦 <b>Pautan Muat Turun Sedia!</b>\n\n"
-            "Telegram mengehadkan muat naik bot melebihi 50MB. Klik butang di bawah untuk muat turun terus kualiti penuh:"
+            "Telegram mengehadkan muat naik bot melebihi 50MB. Klik butang di bawah untuk muat turun terus kualiti penuh pada kelajuan maksimum:"
         ),
         "btn_dl": "📥 Muat Turun Kualiti Penuh",
         "failed": "❌ <b>Gagal Memuat Turun!</b> Video mungkin ditetapkan sebagai Privasi atau telah dipadamkan."
@@ -334,8 +335,10 @@ def download_stream_with_progress(stream_url: str, save_path: str, job_id: str) 
         return False
 
 # ---------------------------------------------------------------------------
-# 7. Specialized Scrapers & RapidAPI Gateway
+# 7. Specialized Scrapers & Multi-API Engines
 # ---------------------------------------------------------------------------
+
+# [FACEBOOK ENGINE - 100% UNTOUCHED & INTACT]
 def scrape_facebook_layer1(url: str) -> str:
     try:
         headers = {
@@ -383,6 +386,7 @@ def scrape_facebook_layer2(url: str) -> str:
         pass
     return None
 
+# [TIKTOK MULTI-ENGINE]
 def download_tiktok_tikwm(url: str, save_path: str, job_id: str) -> bool:
     try:
         res = requests.get(f"https://tikwm.com/api/?url={url}", timeout=10).json()
@@ -393,6 +397,20 @@ def download_tiktok_tikwm(url: str, save_path: str, job_id: str) -> bool:
         pass
     return False
 
+def download_tiktok_lovetik(url: str, save_path: str, job_id: str) -> bool:
+    try:
+        r = requests.post("https://lovetik.com/api/ajax/search", data={"query": url}, timeout=10).json()
+        if r.get("status") == "ok" and r.get("links"):
+            for link in r["links"]:
+                dl = link.get("a")
+                if dl and "watermark" not in link.get("t", "").lower():
+                    return download_stream_with_progress(dl, save_path, job_id)
+            return download_stream_with_progress(r["links"][0].get("a"), save_path, job_id)
+    except Exception:
+        pass
+    return False
+
+# [RAPIDAPI UNIVERSAL GATEWAY]
 def extract_via_rapidapi(url: str) -> str:
     """Queries RapidAPI to get direct high-speed MP4 link."""
     if not RAPIDAPI_KEY:
@@ -419,6 +437,26 @@ def extract_via_rapidapi(url: str) -> str:
                 return dl_url
     except Exception as e:
         logger.warning(f"RapidAPI extract notice: {e}")
+    return None
+
+# [YOUTUBE INVIDIOUS FALLBACK]
+def extract_youtube_invidious(url: str) -> str:
+    try:
+        v_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', url)
+        if not v_match:
+            return None
+        video_id = v_match.group(1)
+        instances = ["https://inv.nadeko.net", "https://invidious.nerdvpn.de", "https://inv.tux.pizza"]
+        for inst in instances:
+            try:
+                res = requests.get(f"{inst}/api/v1/videos/{video_id}", timeout=6).json()
+                formats = res.get("formatStreams") or []
+                if formats:
+                    return formats[-1].get("url")
+            except Exception:
+                continue
+    except Exception:
+        pass
     return None
 
 # ---------------------------------------------------------------------------
@@ -487,12 +525,18 @@ def download_with_ytdlp(url: str, output_path: str, job_id: str, is_youtube: boo
 
 def fetch_direct_stream_url(url: str):
     """Extracts direct CDN streaming MP4 link without external web portals."""
-    # First try RapidAPI if configured
+    # 1. Check RapidAPI
     rapid_link = extract_via_rapidapi(url)
     if rapid_link:
         return rapid_link
 
-    # Fallback to yt-dlp direct extraction
+    # 2. Check Invidious for YouTube
+    if "youtube.com" in url or "youtu.be" in url:
+        inv_link = extract_youtube_invidious(url)
+        if inv_link:
+            return inv_link
+
+    # 3. Fallback to yt-dlp direct extraction
     ydl_opts = {
         'format': 'best', 
         'quiet': True, 
@@ -502,9 +546,12 @@ def fetch_direct_stream_url(url: str):
             'youtube': {'player_client': ['android', 'ios']}
         }
     }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return info.get('url') or (info.get('requested_formats') and info['requested_formats'][0].get('url'))
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return info.get('url') or (info.get('requested_formats') and info['requested_formats'][0].get('url'))
+    except Exception:
+        return None
 
 # ---------------------------------------------------------------------------
 # 9. Live Sound Wave Equalizer (Bouncing Audio Animation)
@@ -781,7 +828,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text=welcome_text, parse_mode=ParseMode.HTML, reply_markup=build_main_menu(user.id))
 
 # ---------------------------------------------------------------------------
-# 13. Message Handler & Live UI Updating Loop
+# 13. Message Handler & Live Dynamic Loop
 # ---------------------------------------------------------------------------
 async def handle_incoming_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
@@ -1026,7 +1073,7 @@ async def handle_incoming_message(update: Update, context: ContextTypes.DEFAULT_
         # 3. TIKTOK, INSTAGRAM, TWITTER & OTHERS
         # -------------------------------------------------------------------
         else:
-            # TikTok TikWM Fallback First
+            # TikTok Multi-Engine: TikWM first, then LoveTik
             if "tiktok.com" in cleaned_url or "douyin.com" in cleaned_url:
                 tiktok_file = str(temp_dir / "tiktok_video.mp4")
                 download_success = await loop.run_in_executor(
@@ -1036,8 +1083,16 @@ async def handle_incoming_message(update: Update, context: ContextTypes.DEFAULT_
                     tiktok_file, 
                     job_id
                 )
+                if not download_success:
+                    download_success = await loop.run_in_executor(
+                        None, 
+                        download_tiktok_lovetik, 
+                        cleaned_url, 
+                        tiktok_file, 
+                        job_id
+                    )
 
-            # RapidAPI Gateway
+            # RapidAPI Gateway for Instagram/Others
             if not download_success and RAPIDAPI_KEY and not ACTIVE_CANCELS.get(job_id):
                 rapid_direct = await loop.run_in_executor(None, extract_via_rapidapi, cleaned_url)
                 if rapid_direct:
@@ -1185,4 +1240,3 @@ def main():
 
 if __name__ == '__main__':
     main()
- 
