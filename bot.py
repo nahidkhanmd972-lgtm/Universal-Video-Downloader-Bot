@@ -772,8 +772,9 @@ def main() -> None:
 
     logger.info("Nahid Video Downloader Pro is ONLINE (%s)!", config.HOST_ENV)
     app.run_polling(drop_pending_updates=True)
-
-
+git add config.py database.py downloader.py tools.py bot.py requirements.txt .gitignore
+git commit -m "Upgrade bot: 5-file modular system with Group, Admin, Comment, Age Calc, Groq AI"
+git push
 if __name__ == "__main__":
     main()
 EOF
